@@ -159,8 +159,8 @@ export default function DashboardPage() {
                 <Card>
                   <CardContent className="p-6">
                     <div className="flex items-center gap-4">
-                      <div className="p-3 bg-blue-100 rounded-lg">
-                        <Clock className="w-6 h-6 text-blue-600" />
+                      <div className="p-3 bg-yellow-50 rounded-lg">
+                        <Users className="w-6 h-6 text-yellow-500" />
                       </div>
                       <div>
                         <p className="text-2xl font-bold text-gray-900">
@@ -180,8 +180,8 @@ export default function DashboardPage() {
                 <Card>
                   <CardContent className="p-6">
                     <div className="flex items-center gap-4">
-                      <div className="p-3 bg-green-100 rounded-lg">
-                        <Star className="w-6 h-6 text-green-600" />
+                      <div className="p-3 bg-orange-50 rounded-lg">
+                        <Star className="w-6 h-6 text-orange-500" />
                       </div>
                       <div>
                         <p className="text-2xl font-bold text-gray-900">
@@ -198,10 +198,6 @@ export default function DashboardPage() {
               <div>
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-bold text-gray-900">Your Watchlists</h2>
-                  <Button variant="outline">
-                    <Filter className="w-4 h-4 mr-2" />
-                    Filter
-                  </Button>
                 </div>
 
                 {filteredWatchlists.length === 0 ? (
@@ -239,8 +235,8 @@ export default function DashboardPage() {
                                 <div className="flex-1">
                                   <div className="flex items-center gap-3 mb-2">
                                     <h3 className="text-lg font-semibold text-gray-900">{list.name}</h3>
-                                    <Badge variant="secondary" className="text-gray-900 bg-gray-100">{totalItems} items</Badge>
-                                    {list.is_public && <Badge variant="outline" className="text-gray-900 border-gray-300">Public</Badge>}
+                                    <Badge variant="secondary" className="text-yellow-700 bg-yellow-50 border border-yellow-200">{totalItems} items</Badge>
+                                    {list.is_public && <Badge variant="outline" className="text-pink-600 border-pink-200 bg-pink-50">Public</Badge>}
                                   </div>
 
                                   {list.description && <p className="text-sm text-gray-600 mb-3">{list.description}</p>}
@@ -286,12 +282,12 @@ export default function DashboardPage() {
             {/* Sidebar */}
             <div className="space-y-6">
               {/* Welcome Message */}
-              <Card className="bg-gradient-to-br from-purple-50 to-blue-50 border-purple-200">
+              <Card className="bg-gradient-to-br from-yellow-50 to-pink-50 border-yellow-200">
                 <CardHeader>
-                  <CardTitle className="text-purple-900">
+                  <CardTitle className="text-yellow-700">
                     Welcome back, {user?.user_metadata?.full_name || user?.email?.split("@")[0]}!
                   </CardTitle>
-                  <CardDescription className="text-purple-700">Ready for your next movie night?</CardDescription>
+                  <CardDescription className="text-pink-600">Ready for your next movie night?</CardDescription>
                 </CardHeader>
               </Card>
 
@@ -319,7 +315,7 @@ export default function DashboardPage() {
               </Card>
 
               {/* Time Suggestion */}
-              <Card className="bg-gradient-to-br from-purple-50 to-blue-50 border-purple-200">
+              <Card className="bg-gradient-to-br from-yellow-50 to-pink-50 border-yellow-200">
                 <CardHeader>
                   <CardTitle className="text-gray-900">Tonight's Suggestion</CardTitle>
                   <CardDescription className="text-gray-600">Based on your 2 hour window</CardDescription>
@@ -331,7 +327,7 @@ export default function DashboardPage() {
                       Add some movies to your watchlists to get personalized recommendations!
                     </p>
                     <Link href="/lists/new">
-                      <Button size="sm" className="w-full">
+                      <Button size="sm" className="w-full bg-gradient-to-r from-yellow-400 to-pink-500 hover:from-yellow-500 hover:to-pink-600 text-white">
                         Create Your First List
                       </Button>
                     </Link>
