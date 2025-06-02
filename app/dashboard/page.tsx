@@ -172,6 +172,39 @@ export default function DashboardPage() {
     }
   }
 
+  const handleUnshareWatchlist = async (watchlistId: string) => {
+    try {
+      // Get the current user's member record for this watchlist
+      const { data: memberData, error: memberError } = await supabase
+        .from("watchlist_members")
+        .select("*")
+        .eq("watchlist_id", watchlistId)
+        .eq("user_id", user?.id)
+        .single()
+
+      if (memberError) throw memberError
+
+      // Delete the member record
+      const { error: deleteError } = await supabase
+        .from("watchlist_members")
+        .delete()
+        .eq("id", memberData.id)
+
+      if (deleteError) throw deleteError
+
+      // Update local state
+      setWatchlists(watchlists.filter((list) => list.id !== watchlistId))
+    } catch (error) {
+      console.error("Error unsharing watchlist:", error)
+    }
+  }
+
+  const getUserRole = (watchlist: WatchlistWithDetails) => {
+    if (watchlist.owner_id === user?.id) return "owner"
+    const member = watchlist.watchlist_members.find(m => m.user_id === user?.id)
+    return member?.role || null
+  }
+
   if (loading) {
     return (
       <ProtectedRoute>
@@ -192,12 +225,14 @@ export default function DashboardPage() {
         <header className="bg-white border-b border-gray-200">
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
-              <Link href="/" className="flex items-center gap-2">
-                <Film className="w-8 h-8 text-yellow-400" />
-                <span className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">
-                  WatchTogether
-                </span>
-              </Link>
+              <div className="flex items-center gap-2">
+                <Link href="/" className="flex items-center gap-2">
+                  <Film className="w-8 h-8 text-yellow-400" />
+                  <span className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">
+                    WatchTogether
+                  </span>
+                </Link>
+              </div>
 
               <div className="flex items-center gap-4">
                 <div className="relative">
@@ -226,20 +261,34 @@ export default function DashboardPage() {
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Avatar className="cursor-pointer">
-                      <AvatarImage src={user?.user_metadata?.avatar_url || "/placeholder.svg"} />
-                      <AvatarFallback>
-                        {user?.user_metadata?.full_name?.charAt(0) || user?.email?.charAt(0) || "U"}
-                      </AvatarFallback>
-                    </Avatar>
+                    <Button variant="ghost" size="icon">
+                      <MoreHorizontal className="w-4 h-4" />
+                    </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="bg-white/95">
                     <DropdownMenuItem onClick={signOut}>
                       <LogOut className="w-4 h-4 mr-2" />
                       Sign Out
                     </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                      onClick={() => {
+                        if (confirm("Are you sure you want to delete all watchlists? This action cannot be undone.")) {
+                          watchlists.forEach(list => handleDeleteWatchlist(list.id))
+                        }
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete All Watchlists
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+                <Avatar className="cursor-pointer">
+                  <AvatarImage src={user?.user_metadata?.avatar_url || "/placeholder.svg"} />
+                  <AvatarFallback>
+                    {user?.user_metadata?.full_name?.charAt(0) || user?.email?.charAt(0) || "U"}
+                  </AvatarFallback>
+                </Avatar>
               </div>
             </div>
           </div>
@@ -394,34 +443,52 @@ export default function DashboardPage() {
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end" className="bg-white/95">
-                                    <DropdownMenuItem
-                                      onClick={(e) => {
-                                        e.preventDefault()
-                                        e.stopPropagation()
-                                        setEditingWatchlist(list)
-                                        setEditForm({
-                                          name: list.name,
-                                          description: list.description || "",
-                                        })
-                                        setIsEditDialogOpen(true)
-                                      }}
-                                    >
-                                      <Pencil className="w-4 h-4 mr-2" />
-                                      Rename List
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                                      onClick={(e) => {
-                                        e.preventDefault()
-                                        e.stopPropagation()
-                                        if (confirm("Are you sure you want to delete this watchlist?")) {
-                                          handleDeleteWatchlist(list.id)
-                                        }
-                                      }}
-                                    >
-                                      <Trash2 className="w-4 h-4 mr-2" />
-                                      Delete Watchlist
-                                    </DropdownMenuItem>
+                                    {getUserRole(list) === "owner" ? (
+                                      <>
+                                        <DropdownMenuItem
+                                          onClick={(e) => {
+                                            e.preventDefault()
+                                            e.stopPropagation()
+                                            setEditingWatchlist(list)
+                                            setEditForm({
+                                              name: list.name,
+                                              description: list.description || "",
+                                            })
+                                            setIsEditDialogOpen(true)
+                                          }}
+                                        >
+                                          <Pencil className="w-4 h-4 mr-2" />
+                                          Rename List
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                          className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                                          onClick={(e) => {
+                                            e.preventDefault()
+                                            e.stopPropagation()
+                                            if (confirm("Are you sure you want to delete this watchlist?")) {
+                                              handleDeleteWatchlist(list.id)
+                                            }
+                                          }}
+                                        >
+                                          <Trash2 className="w-4 h-4 mr-2" />
+                                          Delete Watchlist
+                                        </DropdownMenuItem>
+                                      </>
+                                    ) : (
+                                      <DropdownMenuItem
+                                        className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                                        onClick={(e) => {
+                                          e.preventDefault()
+                                          e.stopPropagation()
+                                          if (confirm("Are you sure you want to remove yourself from this watchlist?")) {
+                                            handleUnshareWatchlist(list.id)
+                                          }
+                                        }}
+                                      >
+                                        <LogOut className="w-4 h-4 mr-2" />
+                                        Unshare Watchlist
+                                      </DropdownMenuItem>
+                                    )}
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               </div>
