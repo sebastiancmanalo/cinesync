@@ -55,6 +55,8 @@ export default function DashboardPage() {
       console.log('Current user ID:', user.id)
       fetchWatchlists()
       fetchPendingInvitations()
+      // Debug: fetch all invitations with joined user info
+      fetchAllInvitationsDebug()
     }
   }, [user])
 
@@ -135,6 +137,24 @@ export default function DashboardPage() {
       setPendingInvitations(data || [])
     } catch (error) {
       console.error("Error fetching invitations:", error)
+    }
+  }
+
+  // Debug: fetch all invitations with joined user info
+  const fetchAllInvitationsDebug = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("watchlist_invitations")
+        .select(`
+          *,
+          invited_by:users!invited_by_user_id(*),
+          invited_user:users!invited_user_id(*)
+        `)
+        .order("created_at", { ascending: false })
+      if (error) throw error
+      console.log("Fetched invitations (debug):", data)
+    } catch (error) {
+      console.error("Error fetching invitations (debug):", error)
     }
   }
 
