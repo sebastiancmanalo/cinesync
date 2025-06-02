@@ -26,6 +26,11 @@ import {
   LogOut,
   MessageCircle,
   Send,
+  Trash2,
+  Settings,
+  UserPlus,
+  Pencil,
+  X,
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -34,6 +39,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { MovieSearch } from "@/components/movie-search"
 import { updateWatchlistItemStatus } from "@/app/actions/watchlist-actions"
 import type { Watchlist, WatchlistItem, WatchlistMember, User, Vote, Comment } from "@/types/database"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface WatchlistWithDetails extends Watchlist {
   watchlist_items: (WatchlistItem & {
@@ -54,14 +62,31 @@ export default function WatchlistPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [filter, setFilter] = useState("all")
   const [newComment, setNewComment] = useState<{ [key: string]: string }>({})
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [editForm, setEditForm] = useState({
+    name: "",
+    description: "",
+  })
   const { user, signOut } = useAuth()
   const supabase = createClient()
+  const [isMembersDialogOpen, setIsMembersDialogOpen] = useState(false)
+  const [newMemberEmail, setNewMemberEmail] = useState("")
+  const [newMemberRole, setNewMemberRole] = useState("member")
 
   useEffect(() => {
     if (watchlistId && user) {
       fetchWatchlist()
     }
   }, [watchlistId, user])
+
+  useEffect(() => {
+    if (watchlist) {
+      setEditForm({
+        name: watchlist.name,
+        description: watchlist.description || "",
+      })
+    }
+  }, [watchlist])
 
   const fetchWatchlist = async () => {
     try {
@@ -160,6 +185,131 @@ export default function WatchlistPage() {
     return votes.find((v) => v.user_id === user?.id)?.vote_type
   }
 
+  const handleDeleteItem = async (itemId: string) => {
+    if (!confirm("Are you sure you want to delete this item?")) return
+    
+    try {
+      await supabase.from("watchlist_items").delete().eq("id", itemId)
+      fetchWatchlist()
+    } catch (error) {
+      console.error("Error deleting item:", error)
+    }
+  }
+
+  const handleMarkAsWatched = async (itemId: string) => {
+    try {
+      await supabase
+        .from("watchlist_items")
+        .update({ 
+          status: "watched",
+          watched_at: new Date().toISOString()
+        })
+        .eq("id", itemId)
+      fetchWatchlist()
+    } catch (error) {
+      console.error("Error marking as watched:", error)
+    }
+  }
+
+  const handleDeleteWatchlist = async () => {
+    if (!confirm("Are you sure you want to delete this watchlist? This action cannot be undone.")) return
+    
+    try {
+      await supabase.from("watchlists").delete().eq("id", watchlistId)
+      window.location.href = "/dashboard"
+    } catch (error) {
+      console.error("Error deleting watchlist:", error)
+    }
+  }
+
+  const handleEditWatchlist = async () => {
+    try {
+      const { error } = await supabase
+        .from("watchlists")
+        .update({
+          name: editForm.name,
+          description: editForm.description,
+        })
+        .eq("id", watchlistId)
+
+      if (error) throw error
+
+      await fetchWatchlist()
+      setIsEditDialogOpen(false)
+    } catch (error) {
+      console.error("Error updating watchlist:", error)
+    }
+  }
+
+  const handleAddMember = async () => {
+    if (!newMemberEmail.trim()) return
+
+    try {
+      // First, get the user ID from the email
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("id")
+        .eq("email", newMemberEmail.trim())
+        .single()
+
+      if (userError) throw userError
+      if (!userData) {
+        alert("User not found")
+        return
+      }
+
+      // Add the member to the watchlist
+      const { error } = await supabase.from("watchlist_members").insert({
+        watchlist_id: watchlistId,
+        user_id: userData.id,
+        role: newMemberRole,
+      })
+
+      if (error) throw error
+
+      setNewMemberEmail("")
+      setNewMemberRole("member")
+      await fetchWatchlist()
+    } catch (error) {
+      console.error("Error adding member:", error)
+      alert("Failed to add member. Please try again.")
+    }
+  }
+
+  const handleRemoveMember = async (memberId: string) => {
+    if (!confirm("Are you sure you want to remove this member?")) return
+
+    try {
+      const { error } = await supabase
+        .from("watchlist_members")
+        .delete()
+        .eq("id", memberId)
+
+      if (error) throw error
+
+      await fetchWatchlist()
+    } catch (error) {
+      console.error("Error removing member:", error)
+      alert("Failed to remove member. Please try again.")
+    }
+  }
+
+  const handleUpdateMemberRole = async (memberId: string, newRole: string) => {
+    try {
+      const { error } = await supabase
+        .from("watchlist_members")
+        .update({ role: newRole })
+        .eq("id", memberId)
+
+      if (error) throw error
+
+      await fetchWatchlist()
+    } catch (error) {
+      console.error("Error updating member role:", error)
+      alert("Failed to update member role. Please try again.")
+    }
+  }
+
   if (loading) {
     return (
       <ProtectedRoute>
@@ -188,11 +338,22 @@ export default function WatchlistPage() {
     )
   }
 
-  const filteredItems = watchlist.watchlist_items.filter((item) => {
-    const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesFilter = filter === "all" || item.status === filter
-    return matchesSearch && matchesFilter
-  })
+  const filteredItems = watchlist.watchlist_items
+    .filter((item) => {
+      const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase())
+      const matchesFilter = filter === "all" || item.status === filter
+      return matchesSearch && matchesFilter
+    })
+    .sort((a, b) => {
+      // Sort watched items to the bottom
+      if (a.status === "watched" && b.status !== "watched") return 1
+      if (a.status !== "watched" && b.status === "watched") return -1
+      // If both are watched, sort by watched_at date
+      if (a.status === "watched" && b.status === "watched") {
+        return new Date(b.watched_at || "").getTime() - new Date(a.watched_at || "").getTime()
+      }
+      return 0
+    })
 
   const totalItems = watchlist.watchlist_items.length
   const watchedItems = watchlist.watchlist_items.filter((item) => item.status === "watched").length
@@ -263,10 +424,31 @@ export default function WatchlistPage() {
                 </div>
               </div>
 
-              <Button variant="outline">
-                <MoreHorizontal className="w-4 h-4 mr-2" />
-                Manage List
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    <Settings className="w-4 h-4 mr-2" />
+                    Manage List
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-white/95">
+                  <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>
+                    <Pencil className="w-4 h-4 mr-2" />
+                    Edit List Details
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setIsMembersDialogOpen(true)}>
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Manage Members
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                    onClick={handleDeleteWatchlist}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Watchlist
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             {/* Progress Bar */}
@@ -335,7 +517,12 @@ export default function WatchlistPage() {
               const userVote = getUserVote(item.votes)
 
               return (
-                <Card key={item.id} className="hover:shadow-md transition-shadow">
+                <Card 
+                  key={item.id} 
+                  className={`hover:shadow-md transition-shadow ${
+                    item.status === "watched" ? "opacity-75" : ""
+                  }`}
+                >
                   <CardContent className="p-6">
                     <div className="flex gap-6">
                       {/* Poster */}
@@ -462,25 +649,40 @@ export default function WatchlistPage() {
                             {item.status === "watching" && (
                               <Button
                                 size="sm"
-                                onClick={async () => {
-                                  await updateWatchlistItemStatus(item.id, "watched")
-                                  fetchWatchlist()
-                                }}
+                                onClick={handleMarkAsWatched}
                               >
                                 <CheckCircle className="w-4 h-4 mr-1" />
                                 Mark as Watched
                               </Button>
                             )}
                             {item.status === "watched" && (
-                              <Button size="sm" variant="outline">
-                                <Calendar className="w-4 h-4 mr-1" />
-                                Rewatch
-                              </Button>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-gray-500">
+                                  Watched on {new Date(item.watched_at || "").toLocaleDateString()}
+                                </span>
+                                <Button size="sm" variant="outline">
+                                  <Calendar className="w-4 h-4 mr-1" />
+                                  Rewatch
+                                </Button>
+                              </div>
                             )}
                           </div>
-                          <Button size="sm" variant="ghost">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="sm" variant="ghost">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="bg-white/95">
+                              <DropdownMenuItem
+                                className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                                onClick={() => handleDeleteItem(item.id)}
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete Item
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </div>
                     </div>
@@ -497,6 +699,124 @@ export default function WatchlistPage() {
             </div>
           )}
         </div>
+
+        {/* Edit List Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="bg-white/95">
+            <DialogHeader>
+              <DialogTitle>Edit Watchlist</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+                  placeholder="Enter watchlist name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={editForm.description}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
+                  placeholder="Enter watchlist description"
+                  className="min-h-[100px]"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleEditWatchlist}>Save Changes</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Members Dialog */}
+        <Dialog open={isMembersDialogOpen} onOpenChange={setIsMembersDialogOpen}>
+          <DialogContent className="bg-white/95">
+            <DialogHeader>
+              <DialogTitle>Manage Members</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              {/* Add New Member */}
+              <div className="space-y-4">
+                <h3 className="font-medium">Add New Member</h3>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Enter member's email"
+                    value={newMemberEmail}
+                    onChange={(e) => setNewMemberEmail(e.target.value)}
+                  />
+                  <Select value={newMemberRole} onValueChange={setNewMemberRole}>
+                    <SelectTrigger className="w-[120px]">
+                      <SelectValue placeholder="Role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="owner">Owner</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="member">Member</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button onClick={handleAddMember}>Add</Button>
+                </div>
+              </div>
+
+              {/* Current Members */}
+              <div className="space-y-4">
+                <h3 className="font-medium">Current Members</h3>
+                <div className="space-y-2">
+                  {watchlist?.watchlist_members.map((member) => (
+                    <div key={member.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <Avatar className="w-8 h-8">
+                          <AvatarImage src={member.user.avatar_url || "/placeholder.svg"} />
+                          <AvatarFallback>
+                            {member.user.full_name?.charAt(0) || member.user.email?.charAt(0) || "U"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="text-sm font-medium">{member.user.full_name || member.user.email}</p>
+                          <p className="text-xs text-gray-500">{member.user.email}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Select
+                          value={member.role}
+                          onValueChange={(value) => handleUpdateMemberRole(member.id, value)}
+                        >
+                          <SelectTrigger className="w-[100px]">
+                            <SelectValue placeholder="Role" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="owner">Owner</SelectItem>
+                            <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="member">Member</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveMember(member.id)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setIsMembersDialogOpen(false)}>Done</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </ProtectedRoute>
   )

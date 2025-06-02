@@ -9,10 +9,13 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Plus, Search, Clock, Users, Star, Calendar, MoreHorizontal, Filter, LogOut, Film, Trash2 } from "lucide-react"
+import { Plus, Search, Clock, Users, Star, Calendar, MoreHorizontal, Filter, LogOut, Film, Trash2, Pencil } from "lucide-react"
 import Link from "next/link"
 import { ProtectedRoute } from "@/components/protected-route"
 import type { Watchlist, WatchlistItem, WatchlistMember } from "@/types/database"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 
 interface WatchlistWithDetails extends Watchlist {
   watchlist_items: WatchlistItem[]
@@ -25,6 +28,12 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const { user, signOut } = useAuth()
   const supabase = createClient()
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [editingWatchlist, setEditingWatchlist] = useState<WatchlistWithDetails | null>(null)
+  const [editForm, setEditForm] = useState({
+    name: "",
+    description: "",
+  })
 
   useEffect(() => {
     if (user) {
@@ -85,6 +94,33 @@ export default function DashboardPage() {
       setWatchlists(watchlists.filter(list => list.id !== watchlistId))
     } catch (error) {
       console.error("Error deleting watchlist:", error)
+    }
+  }
+
+  const handleEditWatchlist = async () => {
+    if (!editingWatchlist) return
+
+    try {
+      const { error } = await supabase
+        .from("watchlists")
+        .update({
+          name: editForm.name,
+          description: editForm.description,
+        })
+        .eq("id", editingWatchlist.id)
+
+      if (error) throw error
+
+      // Update local state
+      setWatchlists(watchlists.map(list => 
+        list.id === editingWatchlist.id 
+          ? { ...list, name: editForm.name, description: editForm.description }
+          : list
+      ))
+      setIsEditDialogOpen(false)
+      setEditingWatchlist(null)
+    } catch (error) {
+      console.error("Error updating watchlist:", error)
     }
   }
 
@@ -287,7 +323,22 @@ export default function DashboardPage() {
                                     <DropdownMenuTrigger asChild>
                                       <Button variant="ghost" size="icon" className="absolute inset-0" />
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
+                                    <DropdownMenuContent align="end" className="bg-white/95">
+                                      <DropdownMenuItem
+                                        onClick={(e) => {
+                                          e.preventDefault()
+                                          e.stopPropagation()
+                                          setEditingWatchlist(list)
+                                          setEditForm({
+                                            name: list.name,
+                                            description: list.description || "",
+                                          })
+                                          setIsEditDialogOpen(true)
+                                        }}
+                                      >
+                                        <Pencil className="w-4 h-4 mr-2" />
+                                        Rename List
+                                      </DropdownMenuItem>
                                       <DropdownMenuItem
                                         className="text-red-600 focus:text-red-600 focus:bg-red-50"
                                         onClick={(e) => {
@@ -373,6 +424,42 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* Edit Watchlist Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="bg-white/95">
+            <DialogHeader>
+              <DialogTitle>Edit Watchlist</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+                  placeholder="Enter watchlist name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={editForm.description}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
+                  placeholder="Enter watchlist description"
+                  className="min-h-[100px]"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleEditWatchlist}>Save Changes</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </ProtectedRoute>
   )

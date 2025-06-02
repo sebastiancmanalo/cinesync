@@ -63,18 +63,21 @@ export default function NewListPage() {
         {/* Header */}
         <header className="bg-white border-b border-gray-200">
           <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center gap-4">
-              <Link href="/dashboard">
-                <Button variant="ghost" size="icon">
-                  <ArrowLeft className="w-4 h-4" />
-                </Button>
-              </Link>
+            <div className="flex items-center justify-between">
               <Link href="/" className="flex items-center gap-2">
                 <Film className="w-8 h-8 text-yellow-400" />
                 <span className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">
                   WatchTogether
                 </span>
               </Link>
+
+              <div className="flex items-center gap-4">
+                <Link href="/dashboard">
+                  <Button variant="ghost" size="icon">
+                    <ArrowLeft className="w-4 h-4" />
+                  </Button>
+                </Link>
+              </div>
             </div>
           </div>
         </header>
@@ -87,10 +90,10 @@ export default function NewListPage() {
             </p>
           </div>
 
-          <Card>
+          <Card className="bg-white/80">
             <CardHeader>
-              <CardTitle>Watchlist Details</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-gray-900">Watchlist Details</CardTitle>
+              <CardDescription className="text-gray-600">
                 Give your watchlist a name and description to help others understand what it's for
               </CardDescription>
             </CardHeader>
