@@ -41,7 +41,7 @@ import Image from "next/image"
 import { ProtectedRoute } from "@/components/protected-route"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { MovieSearch } from "@/components/movie-search"
-import { updateWatchlistItemStatus } from "@/app/actions/watchlist-actions"
+import { updateWatchlistItemStatus, sendWatchlistInvitation } from "@/app/actions/watchlist-actions"
 import type { Watchlist, WatchlistItem, WatchlistMember, User, Vote, Comment } from "@/types/database"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
@@ -55,6 +55,7 @@ interface WatchlistWithDetails extends Watchlist {
     votes: Vote[]
     comments: Comment[]
     added_by_user: User
+    watched_at?: string
   })[]
   watchlist_members: (WatchlistMember & {
     user: User
@@ -86,6 +87,7 @@ export default function WatchlistPage() {
   const [shareLink, setShareLink] = useState("")
   const [shareEmail, setShareEmail] = useState("")
   const [copySuccess, setCopySuccess] = useState(false)
+  const [inviteStatus, setInviteStatus] = useState<null | { success: boolean; message: string }>(null)
 
   useEffect(() => {
     if (watchlistId && user) {
@@ -452,64 +454,22 @@ export default function WatchlistPage() {
 
   const handleShareViaEmail = async () => {
     if (!shareEmail.trim()) return
-
+    setInviteStatus(null)
     try {
-      // First, get the user ID from the email
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("id")
-        .eq("email", shareEmail.trim())
-        .single()
-
-      if (userError) throw userError
-      if (!userData) {
-        alert("User not found")
-        return
-      }
-
-      // Check if user is already a member
-      const { data: existingMember } = await supabase
-        .from("watchlist_members")
-        .select("id")
-        .eq("watchlist_id", watchlistId)
-        .eq("user_id", userData.id)
-        .single()
-
-      if (existingMember) {
-        alert("User is already a member of this watchlist")
-        return
-      }
-
-      // Check if there's already a pending invitation
-      const { data: existingInvitation } = await supabase
-        .from("watchlist_invitations")
-        .select("id")
-        .eq("watchlist_id", watchlistId)
-        .eq("invited_user_id", userData.id)
-        .eq("status", "pending")
-        .single()
-
-      if (existingInvitation) {
-        alert("User already has a pending invitation")
-        return
-      }
-
-      // Create invitation
-      const { error } = await supabase.from("watchlist_invitations").insert({
-        watchlist_id: watchlistId,
-        invited_user_id: userData.id,
-        invited_by_user_id: user?.id,
-        status: "pending",
+      const result = await sendWatchlistInvitation({
+        watchlistId,
+        invitedByUserId: user?.id || "",
+        invitedUserEmail: shareEmail.trim(),
       })
-
-      if (error) throw error
-
-      setShareEmail("")
-      setIsShareDialogOpen(false)
-      alert("Invitation sent successfully!")
-    } catch (error) {
-      console.error("Error sharing watchlist:", error)
-      alert("Failed to share watchlist. Please try again.")
+      if (result.success) {
+        setInviteStatus({ success: true, message: "Invitation sent successfully!" })
+        setShareEmail("")
+        setTimeout(() => setIsShareDialogOpen(false), 1200)
+      } else {
+        setInviteStatus({ success: false, message: result.error || "Failed to send invitation." })
+      }
+    } catch (error: any) {
+      setInviteStatus({ success: false, message: error.message || "Failed to send invitation." })
     }
   }
 
@@ -1079,60 +1039,27 @@ export default function WatchlistPage() {
 
         {/* Share Dialog */}
         <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
-          <DialogContent className="bg-white/95">
+          <DialogContent className="max-w-md bg-white/95 border border-gray-200 shadow-xl">
             <DialogHeader>
               <DialogTitle className="bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">Share Watchlist</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-              {/* Share via Link */}
-              <div className="space-y-2">
-                <Label className="text-gray-900">Share via Link</Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={shareLink}
-                    readOnly
-                    className="bg-white/95 text-gray-900"
-                  />
-                  <Button
-                    onClick={handleCopyLink}
-                    className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black"
-                  >
-                    {copySuccess ? (
-                      <CheckCircle className="w-4 h-4" />
-                    ) : (
-                      <Copy className="w-4 h-4" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Share via Email */}
-              <div className="space-y-2">
-                <Label className="text-gray-900">Share via Email</Label>
-                <div className="flex gap-2">
-                  <Input
-                    type="email"
-                    placeholder="Enter email address"
-                    value={shareEmail}
-                    onChange={(e) => setShareEmail(e.target.value)}
-                    className="bg-white/95 text-gray-900"
-                  />
-                  <Button
-                    onClick={handleShareViaEmail}
-                    className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black"
-                  >
-                    <Mail className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
+            <div className="mb-4">
+              <Label htmlFor="share-email" className="text-gray-900">Invite by Email</Label>
+              <Input
+                id="share-email"
+                type="email"
+                placeholder="Enter email address"
+                value={shareEmail}
+                onChange={e => setShareEmail(e.target.value)}
+                className="mt-1 bg-white/95 text-gray-900 border-gray-300"
+              />
             </div>
+            {inviteStatus && (
+              <div className={inviteStatus.success ? "text-green-600" : "text-red-600"}>{inviteStatus.message}</div>
+            )}
             <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsShareDialogOpen(false)}
-                className="bg-white/95 text-gray-900"
-              >
-                Close
+              <Button onClick={handleShareViaEmail} className="bg-gradient-to-r from-pink-500 to-yellow-400 text-black font-medium border border-gray-300">
+                Send Invitation
               </Button>
             </DialogFooter>
           </DialogContent>
