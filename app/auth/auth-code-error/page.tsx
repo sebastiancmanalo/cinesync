@@ -29,7 +29,7 @@ export default function AuthCodeErrorPage() {
         <div className="w-full max-w-md">
           <Card className="bg-slate-800/50 border-slate-700 shadow-2xl backdrop-blur-sm">
             <CardHeader className="text-center">
-              <div className="mx-auto w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mb-4">
+              <div className="mx-auto w-16 h-16 bg-gradient-to-br from-red-500/20 to-red-600/20 rounded-full flex items-center justify-center mb-4 border border-red-400/30">
                 <AlertCircle className="w-8 h-8 text-red-400" />
               </div>
               <CardTitle className="text-2xl text-white">Authentication Error</CardTitle>
@@ -39,7 +39,7 @@ export default function AuthCodeErrorPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="text-center">
-                <p className="text-sm text-slate-400 mb-6">
+                <p className="text-sm text-slate-300 mb-6">
                   Please try signing in again. If the problem persists, contact support.
                 </p>
                 <div className="space-y-3">
@@ -49,7 +49,10 @@ export default function AuthCodeErrorPage() {
                     </Button>
                   </Link>
                   <Link href="/" className="block">
-                    <Button variant="outline" className="w-full border-slate-600 text-slate-300 hover:bg-slate-700">
+                    <Button
+                      variant="outline"
+                      className="w-full border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white"
+                    >
                       Back to Home
                     </Button>
                   </Link>

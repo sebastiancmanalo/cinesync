@@ -77,8 +77,8 @@ export default function SignupPage() {
               </div>
 
               <div className="space-y-6">
-                <div className="flex items-start gap-4">
-                  <div className="p-3 bg-yellow-400/20 rounded-lg">
+                <div className="flex items-start gap-4 p-4 rounded-lg bg-slate-800/30 border border-slate-700/50 backdrop-blur-sm">
+                  <div className="flex-shrink-0 p-3 bg-gradient-to-br from-yellow-400/20 to-yellow-500/20 rounded-lg border border-yellow-400/30">
                     <Users className="w-6 h-6 text-yellow-400" />
                   </div>
                   <div>
@@ -90,8 +90,8 @@ export default function SignupPage() {
                   </div>
                 </div>
 
-                <div className="flex items-start gap-4">
-                  <div className="p-3 bg-pink-500/20 rounded-lg">
+                <div className="flex items-start gap-4 p-4 rounded-lg bg-slate-800/30 border border-slate-700/50 backdrop-blur-sm">
+                  <div className="flex-shrink-0 p-3 bg-gradient-to-br from-pink-500/20 to-pink-600/20 rounded-lg border border-pink-400/30">
                     <Clock className="w-6 h-6 text-pink-400" />
                   </div>
                   <div>
@@ -103,8 +103,8 @@ export default function SignupPage() {
                   </div>
                 </div>
 
-                <div className="flex items-start gap-4">
-                  <div className="p-3 bg-blue-500/20 rounded-lg">
+                <div className="flex items-start gap-4 p-4 rounded-lg bg-slate-800/30 border border-slate-700/50 backdrop-blur-sm">
+                  <div className="flex-shrink-0 p-3 bg-gradient-to-br from-blue-500/20 to-blue-600/20 rounded-lg border border-blue-400/30">
                     <Star className="w-6 h-6 text-blue-400" />
                   </div>
                   <div>
@@ -182,16 +182,16 @@ export default function SignupPage() {
                     </div>
 
                     <div className="pt-4 space-y-3">
-                      <div className="flex items-center gap-3 text-sm text-slate-400">
-                        <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                      <div className="flex items-center gap-3 text-sm text-slate-300">
+                        <div className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></div>
                         <span>No credit card required</span>
                       </div>
-                      <div className="flex items-center gap-3 text-sm text-slate-400">
-                        <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                      <div className="flex items-center gap-3 text-sm text-slate-300">
+                        <div className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></div>
                         <span>Unlimited watchlists</span>
                       </div>
-                      <div className="flex items-center gap-3 text-sm text-slate-400">
-                        <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                      <div className="flex items-center gap-3 text-sm text-slate-300">
+                        <div className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></div>
                         <span>Invite unlimited friends</span>
                       </div>
                     </div>
@@ -199,13 +199,13 @@ export default function SignupPage() {
                 </Card>
 
                 <div className="mt-6 text-center">
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-400">
                     By creating an account, you agree to our{" "}
-                    <Link href="/terms" className="text-slate-400 hover:text-white transition-colors">
+                    <Link href="/terms" className="text-slate-300 hover:text-white transition-colors underline">
                       Terms of Service
                     </Link>{" "}
                     and{" "}
-                    <Link href="/privacy" className="text-slate-400 hover:text-white transition-colors">
+                    <Link href="/privacy" className="text-slate-300 hover:text-white transition-colors underline">
                       Privacy Policy
                     </Link>
                   </p>
