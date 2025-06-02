@@ -90,7 +90,7 @@ export default function NewListPage() {
             </p>
           </div>
 
-          <Card className="bg-white/80">
+          <Card className="bg-white">
             <CardHeader>
               <CardTitle className="text-gray-900">Watchlist Details</CardTitle>
               <CardDescription className="text-gray-600">
@@ -106,24 +106,26 @@ export default function NewListPage() {
                 )}
 
                 <div className="space-y-2">
-                  <Label htmlFor="name">Name *</Label>
+                  <Label htmlFor="name" className="text-gray-900">Name *</Label>
                   <Input
                     id="name"
                     value={formData.name}
                     onChange={(e) => handleInputChange("name", e.target.value)}
                     placeholder="e.g., Movie Night Picks, Must-Watch Series"
                     required
+                    className="bg-white text-gray-900 placeholder:text-gray-500 border-gray-200 focus:border-gray-300"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
+                  <Label htmlFor="description" className="text-gray-900">Description</Label>
                   <Textarea
                     id="description"
                     value={formData.description}
                     onChange={(e) => handleInputChange("description", e.target.value)}
                     placeholder="What kind of movies or shows will this list contain?"
                     rows={3}
+                    className="bg-white text-gray-900 placeholder:text-gray-500 border-gray-200 focus:border-gray-300"
                   />
                 </div>
 
@@ -133,11 +135,11 @@ export default function NewListPage() {
                     checked={formData.isPublic}
                     onCheckedChange={(checked) => handleInputChange("isPublic", checked)}
                   />
-                  <Label htmlFor="public" className="text-sm font-medium">
+                  <Label htmlFor="public" className="text-gray-900">
                     Make this watchlist public
                   </Label>
                 </div>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-600">
                   Public watchlists can be discovered by other users. Private watchlists are only visible to invited
                   members.
                 </p>
@@ -150,7 +152,7 @@ export default function NewListPage() {
                   >
                     {loading ? "Creating..." : "Create Watchlist"}
                   </Button>
-                  <Button type="button" variant="outline" asChild>
+                  <Button type="button" variant="outline" asChild className="bg-white text-gray-900 hover:bg-gray-100 border-gray-200">
                     <Link href="/dashboard">Cancel</Link>
                   </Button>
                 </div>

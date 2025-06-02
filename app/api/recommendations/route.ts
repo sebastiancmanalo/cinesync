@@ -48,8 +48,11 @@ export async function GET(request: Request) {
       .or(`owner_id.eq.${userId},watchlist_members.user_id.eq.${userId}`)
 
     if (watchlistsError) {
+      console.error("Error fetching watchlists:", watchlistsError)
       throw watchlistsError
     }
+
+    console.log("Fetched watchlists:", watchlists)
 
     // Extract all movie IDs from watchlists, excluding watched items
     const movieIds = watchlists
@@ -57,7 +60,10 @@ export async function GET(request: Request) {
       .filter((item) => item.status !== "watched")
       .map((item) => item.movie_id)
 
+    console.log("Extracted movie IDs:", movieIds)
+
     if (movieIds.length === 0) {
+      console.log("No movies found in watchlists")
       return NextResponse.json({ recommendations: [] })
     }
 
@@ -67,20 +73,28 @@ export async function GET(request: Request) {
         const response = await fetch(
           `${TMDB_BASE_URL}/movie/${movieId}?api_key=${TMDB_API_KEY}`
         )
-        return response.json()
+        const data = await response.json()
+        console.log(`Fetched movie details for ID ${movieId}:`, data.title)
+        return data
       })
     )
+
+    console.log("Movie details:", movieDetails.map(m => m.title))
 
     // Create a prompt for OpenAI
     const prompt = `Based on these movies that the user has in their watchlists: ${movieDetails
       .map((movie) => movie.title)
       .join(", ")}, recommend 3 similar movies that the user might enjoy. For each movie, provide a one-sentence explanation of why they would like it based on their viewing history. Focus on recommending movies that are similar in genre, style, or theme to the ones they've already chosen to watch.`
 
+    console.log("OpenAI prompt:", prompt)
+
     // Get recommendations from OpenAI
     const completion = await openai.chat.completions.create({
       messages: [{ role: "user", content: prompt }],
       model: "gpt-3.5-turbo",
     })
+
+    console.log("OpenAI response:", completion.choices[0].message.content)
 
     const recommendations = completion.choices[0].message.content
       ?.split("\n")
@@ -89,6 +103,8 @@ export async function GET(request: Request) {
         const [title, reason] = line.split(" - ")
         return { title: title.replace(/^\d+\.\s*/, ""), reason }
       })
+
+    console.log("Parsed recommendations:", recommendations)
 
     // Get movie details from TMDB for recommended movies
     const recommendedMovies = await Promise.all(
@@ -100,6 +116,7 @@ export async function GET(request: Request) {
         )
         const data = await response.json()
         const movie = data.results[0]
+        console.log(`Found TMDB match for "${rec.title}":`, movie?.title)
         return {
           id: movie.id,
           title: movie.title,
@@ -110,6 +127,8 @@ export async function GET(request: Request) {
         }
       }) || []
     )
+
+    console.log("Final recommended movies:", recommendedMovies.map(m => m.title))
 
     return NextResponse.json({ recommendations: recommendedMovies })
   } catch (error) {
