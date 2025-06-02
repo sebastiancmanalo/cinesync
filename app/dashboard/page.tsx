@@ -80,7 +80,7 @@ export default function DashboardPage() {
           ),
           watchlist_items(*)
         `)
-        .eq("created_by_user_id", user?.id)
+        .eq("owner_id", user?.id)
         .order("created_at", { ascending: false })
 
       if (ownerError) throw ownerError
