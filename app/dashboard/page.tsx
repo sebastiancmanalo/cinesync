@@ -106,7 +106,7 @@ export default function DashboardPage() {
                     placeholder="Search watchlists..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 w-64"
+                    className="pl-10 w-64 bg-white text-gray-900"
                   />
                 </div>
                 <Link href="/lists/new">
@@ -149,7 +149,7 @@ export default function DashboardPage() {
                         <Users className="w-6 h-6 text-purple-600" />
                       </div>
                       <div>
-                        <p className="text-2xl font-bold">{watchlists.length}</p>
+                        <p className="text-2xl font-bold text-gray-900">{watchlists.length}</p>
                         <p className="text-sm text-gray-600">Active Lists</p>
                       </div>
                     </div>
@@ -163,7 +163,7 @@ export default function DashboardPage() {
                         <Clock className="w-6 h-6 text-blue-600" />
                       </div>
                       <div>
-                        <p className="text-2xl font-bold">
+                        <p className="text-2xl font-bold text-gray-900">
                           {formatTime(
                             watchlists.reduce(
                               (total, list) => total + calculateTotalTime(list.watchlist_items || []),
@@ -184,7 +184,7 @@ export default function DashboardPage() {
                         <Star className="w-6 h-6 text-green-600" />
                       </div>
                       <div>
-                        <p className="text-2xl font-bold">
+                        <p className="text-2xl font-bold text-gray-900">
                           {watchlists.reduce((total, list) => total + (list.watchlist_items?.length || 0), 0)}
                         </p>
                         <p className="text-sm text-gray-600">Items to Watch</p>
@@ -239,8 +239,8 @@ export default function DashboardPage() {
                                 <div className="flex-1">
                                   <div className="flex items-center gap-3 mb-2">
                                     <h3 className="text-lg font-semibold text-gray-900">{list.name}</h3>
-                                    <Badge variant="secondary">{totalItems} items</Badge>
-                                    {list.is_public && <Badge variant="outline">Public</Badge>}
+                                    <Badge variant="secondary" className="text-gray-900 bg-gray-100">{totalItems} items</Badge>
+                                    {list.is_public && <Badge variant="outline" className="text-gray-900 border-gray-300">Public</Badge>}
                                   </div>
 
                                   {list.description && <p className="text-sm text-gray-600 mb-3">{list.description}</p>}
@@ -298,7 +298,7 @@ export default function DashboardPage() {
               {/* Quick Actions */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Quick Actions</CardTitle>
+                  <CardTitle className="text-gray-900">Quick Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <Link href="/lists/new">
@@ -321,13 +321,13 @@ export default function DashboardPage() {
               {/* Time Suggestion */}
               <Card className="bg-gradient-to-br from-purple-50 to-blue-50 border-purple-200">
                 <CardHeader>
-                  <CardTitle className="text-purple-900">Tonight's Suggestion</CardTitle>
-                  <CardDescription className="text-purple-700">Based on your 2 hour window</CardDescription>
+                  <CardTitle className="text-gray-900">Tonight's Suggestion</CardTitle>
+                  <CardDescription className="text-gray-600">Based on your 2 hour window</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    <div className="font-medium text-purple-900">Ready to discover something new?</div>
-                    <p className="text-sm text-purple-700">
+                    <div className="font-medium text-gray-900">Ready to discover something new?</div>
+                    <p className="text-sm text-gray-600">
                       Add some movies to your watchlists to get personalized recommendations!
                     </p>
                     <Link href="/lists/new">
