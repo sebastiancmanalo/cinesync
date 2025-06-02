@@ -63,7 +63,10 @@ export default function DashboardPage() {
         .from("watchlists")
         .select(`
           *,
-          watchlist_members!inner(role),
+          watchlist_members (
+            *,
+            user:users (*)
+          ),
           watchlist_items(*)
         `)
         .eq("watchlist_members.user_id", user?.id)
