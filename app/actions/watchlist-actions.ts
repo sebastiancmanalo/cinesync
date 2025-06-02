@@ -278,3 +278,73 @@ export async function addComment(itemId: string, content: string) {
     return { success: false, error: error.message || "Failed to add comment" }
   }
 }
+
+// Send a watchlist invitation
+export async function sendWatchlistInvitation({
+  watchlistId,
+  invitedByUserId,
+  invitedUserEmail,
+}: {
+  watchlistId: string;
+  invitedByUserId: string;
+  invitedUserEmail: string;
+}) {
+  const supabase = await createClient()
+
+  try {
+    // Check for existing invitation
+    const { data: existing, error: existingError } = await supabase
+      .from("watchlist_invitations")
+      .select("*")
+      .eq("watchlist_id", watchlistId)
+      .eq("invited_user_email", invitedUserEmail)
+      .eq("status", "pending")
+      .maybeSingle();
+
+    if (existing) {
+      return { success: false, error: "Invitation already sent." };
+    }
+
+    // Create new invitation
+    const { error } = await supabase.from("watchlist_invitations").insert([
+      {
+        watchlist_id: watchlistId,
+        invited_by_user_id: invitedByUserId,
+        invited_user_email: invitedUserEmail,
+        status: "pending",
+      },
+    ]);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error sending watchlist invitation:", error)
+    return { success: false, error: error.message || "Failed to send watchlist invitation" }
+  }
+}
+
+// Fetch pending invitations for a user
+export async function fetchPendingInvitations(userId: string, userEmail: string) {
+  const supabase = await createClient()
+
+  try {
+    const { data, error } = await supabase
+      .from("watchlist_invitations")
+      .select("*, watchlist:watchlists(*), invited_by:users!invited_by_user_id(*)")
+      .or(`invited_user_id.eq.${userId},invited_user_email.eq.${userEmail}`)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      return { success: false, error: error.message, invitations: [] };
+    }
+
+    return { success: true, invitations: data };
+  } catch (error: any) {
+    console.error("Error fetching pending invitations:", error)
+    return { success: false, error: error.message || "Failed to fetch pending invitations", invitations: [] }
+  }
+}
