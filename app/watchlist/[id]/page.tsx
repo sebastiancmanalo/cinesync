@@ -31,6 +31,7 @@ import {
   UserPlus,
   Pencil,
   X,
+  Film,
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -422,7 +423,7 @@ export default function WatchlistPage() {
                   </Button>
                 </Link>
                 <Link href="/" className="flex items-center gap-2">
-                  <Play className="w-8 h-8 text-yellow-400" />
+                  <Film className="w-8 h-8 text-yellow-400" />
                   <span className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">
                     WatchTogether
                   </span>
@@ -506,7 +507,7 @@ export default function WatchlistPage() {
             {totalItems > 0 && (
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">Progress</span>
+                  <span className="text-sm font-medium text-gray-900">Progress</span>
                   <span className="text-sm text-gray-600">{Math.round((watchedItems / totalItems) * 100)}%</span>
                 </div>
                 <Progress value={(watchedItems / totalItems) * 100} className="h-2 bg-gray-200" />
@@ -515,7 +516,7 @@ export default function WatchlistPage() {
 
             {/* Members */}
             <div className="flex items-center gap-4">
-              <span className="text-sm font-medium">Members:</span>
+              <span className="text-sm font-medium text-gray-900">Members:</span>
               <div className="flex items-center gap-2">
                 {watchlist.watchlist_members.map((member) => (
                   <div key={member.id} className="flex items-center gap-2">
@@ -525,7 +526,7 @@ export default function WatchlistPage() {
                         {member.user.full_name?.charAt(0) || member.user.email?.charAt(0) || "U"}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="text-sm">{member.user.full_name || member.user.email}</span>
+                    <span className="text-sm text-gray-900">{member.user.full_name || member.user.email}</span>
                     <Badge variant="secondary" className="text-xs">
                       {member.role}
                     </Badge>
@@ -543,7 +544,7 @@ export default function WatchlistPage() {
                 placeholder="Search movies and shows..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-white/95"
+                className="pl-10 bg-white/95 text-gray-900"
               />
             </div>
 
@@ -553,7 +554,7 @@ export default function WatchlistPage() {
                   key={filterOption}
                   variant={filter === filterOption ? "default" : "outline"}
                   size="sm"
-                  className={filter === filterOption ? "bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black" : "bg-white/95"}
+                  className={filter === filterOption ? "bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black" : "bg-white/95 text-gray-900"}
                   onClick={() => setFilter(filterOption)}
                 >
                   {filterOption.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase())}
@@ -625,6 +626,7 @@ export default function WatchlistPage() {
                             <Button
                               size="sm"
                               variant={userVote === "up" ? "default" : "outline"}
+                              className={userVote === "up" ? "bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black" : "bg-white/95 text-gray-900"}
                               onClick={() => handleVote(item.id, "up")}
                             >
                               <ThumbsUp className="w-4 h-4 mr-1" />
@@ -633,6 +635,7 @@ export default function WatchlistPage() {
                             <Button
                               size="sm"
                               variant={userVote === "down" ? "default" : "outline"}
+                              className={userVote === "down" ? "bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black" : "bg-white/95 text-gray-900"}
                               onClick={() => handleVote(item.id, "down")}
                             >
                               <ThumbsDown className="w-4 h-4 mr-1" />
@@ -652,7 +655,7 @@ export default function WatchlistPage() {
                             {item.comments.slice(0, 2).map((comment) => (
                               <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
                                 <div className="flex items-center gap-2 mb-1">
-                                  <span className="text-sm font-medium">{comment.user?.full_name || comment.user?.email || "User"}</span>
+                                  <span className="text-sm font-medium text-gray-900">{comment.user?.full_name || comment.user?.email || "User"}</span>
                                   <span className="text-xs text-gray-500">
                                     {new Date(comment.created_at).toLocaleDateString()}
                                   </span>
@@ -672,12 +675,13 @@ export default function WatchlistPage() {
                             placeholder="Add a comment..."
                             value={newComment[item.id] || ""}
                             onChange={(e) => setNewComment((prev) => ({ ...prev, [item.id]: e.target.value }))}
-                            className="flex-1 min-h-[60px]"
+                            className="flex-1 min-h-[60px] bg-white/95 text-gray-900"
                           />
                           <Button
                             size="sm"
                             onClick={() => handleAddComment(item.id)}
                             disabled={!newComment[item.id]?.trim()}
+                            className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black"
                           >
                             <Send className="w-4 h-4" />
                           </Button>
@@ -693,6 +697,7 @@ export default function WatchlistPage() {
                                   await updateWatchlistItemStatus(item.id, "watching")
                                   fetchWatchlist()
                                 }}
+                                className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black"
                               >
                                 <Play className="w-4 h-4 mr-1" />
                                 Start Watching
@@ -702,6 +707,7 @@ export default function WatchlistPage() {
                               <Button
                                 size="sm"
                                 onClick={() => handleMarkAsWatched(item)}
+                                className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black"
                               >
                                 <CheckCircle className="w-4 h-4 mr-1" />
                                 Mark as Watched
@@ -712,7 +718,7 @@ export default function WatchlistPage() {
                                 <span className="text-sm text-gray-500">
                                   Watched on {new Date(item.watched_at || "").toLocaleDateString()}
                                 </span>
-                                <Button size="sm" variant="outline">
+                                <Button size="sm" variant="outline" className="bg-white/95 text-gray-900">
                                   <CalendarIcon className="w-4 h-4 mr-1" />
                                   Rewatch
                                 </Button>
@@ -721,7 +727,7 @@ export default function WatchlistPage() {
                           </div>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button size="sm" variant="ghost">
+                              <Button size="sm" variant="ghost" className="text-gray-900">
                                 <MoreHorizontal className="w-4 h-4" />
                               </Button>
                             </DropdownMenuTrigger>
@@ -780,30 +786,33 @@ export default function WatchlistPage() {
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
+                <Label htmlFor="name" className="text-gray-900">Name</Label>
                 <Input
                   id="name"
                   value={editForm.name}
                   onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
                   placeholder="Enter watchlist name"
+                  className="bg-white/95 text-gray-900"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description" className="text-gray-900">Description</Label>
                 <Textarea
                   id="description"
                   value={editForm.description}
                   onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
                   placeholder="Enter watchlist description"
-                  className="min-h-[100px]"
+                  className="min-h-[100px] bg-white/95 text-gray-900"
                 />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="bg-white/95 text-gray-900">
                 Cancel
               </Button>
-              <Button onClick={handleEditWatchlist}>Save Changes</Button>
+              <Button onClick={handleEditWatchlist} className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black">
+                Save Changes
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -817,30 +826,33 @@ export default function WatchlistPage() {
             <div className="space-y-4 py-4">
               {/* Add New Member */}
               <div className="space-y-4">
-                <h3 className="font-medium">Add New Member</h3>
+                <h3 className="font-medium text-gray-900">Add New Member</h3>
                 <div className="flex gap-2">
                   <Input
                     placeholder="Enter member's email"
                     value={newMemberEmail}
                     onChange={(e) => setNewMemberEmail(e.target.value)}
+                    className="bg-white/95 text-gray-900"
                   />
                   <Select value={newMemberRole} onValueChange={setNewMemberRole}>
-                    <SelectTrigger className="w-[120px]">
+                    <SelectTrigger className="w-[120px] bg-white/95 text-gray-900">
                       <SelectValue placeholder="Role" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-white/95">
                       <SelectItem value="owner">Owner</SelectItem>
                       <SelectItem value="admin">Admin</SelectItem>
                       <SelectItem value="member">Member</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Button onClick={handleAddMember}>Add</Button>
+                  <Button onClick={handleAddMember} className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black">
+                    Add
+                  </Button>
                 </div>
               </div>
 
               {/* Current Members */}
               <div className="space-y-4">
-                <h3 className="font-medium">Current Members</h3>
+                <h3 className="font-medium text-gray-900">Current Members</h3>
                 <div className="space-y-2">
                   {watchlist?.watchlist_members.map((member) => (
                     <div key={member.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
@@ -852,7 +864,7 @@ export default function WatchlistPage() {
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="text-sm font-medium">{member.user.full_name || member.user.email}</p>
+                          <p className="text-sm font-medium text-gray-900">{member.user.full_name || member.user.email}</p>
                           <p className="text-xs text-gray-500">{member.user.email}</p>
                         </div>
                       </div>
@@ -861,10 +873,10 @@ export default function WatchlistPage() {
                           value={member.role}
                           onValueChange={(value) => handleUpdateMemberRole(member.id, value)}
                         >
-                          <SelectTrigger className="w-[100px]">
+                          <SelectTrigger className="w-[100px] bg-white/95 text-gray-900">
                             <SelectValue placeholder="Role" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="bg-white/95">
                             <SelectItem value="owner">Owner</SelectItem>
                             <SelectItem value="admin">Admin</SelectItem>
                             <SelectItem value="member">Member</SelectItem>
@@ -885,7 +897,9 @@ export default function WatchlistPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button onClick={() => setIsMembersDialogOpen(false)}>Done</Button>
+              <Button onClick={() => setIsMembersDialogOpen(false)} className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black">
+                Done
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -901,14 +915,16 @@ export default function WatchlistPage() {
                 mode="single"
                 selected={selectedDate}
                 onSelect={(date) => date && setSelectedDate(date)}
-                className="rounded-md border"
+                className="rounded-md border bg-white/95"
               />
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDatePickerOpen(false)}>
+              <Button variant="outline" onClick={() => setIsDatePickerOpen(false)} className="bg-white/95 text-gray-900">
                 Cancel
               </Button>
-              <Button onClick={handleUpdateWatchDate}>Save Date</Button>
+              <Button onClick={handleUpdateWatchDate} className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black">
+                Save Date
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
