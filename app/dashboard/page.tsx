@@ -52,6 +52,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (user) {
+      console.log('Current user ID:', user.id)
       fetchWatchlists()
       fetchPendingInvitations()
     }
