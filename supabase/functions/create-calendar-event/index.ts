@@ -1,3 +1,4 @@
+// Import from URLs with proper format
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1"
 import { google } from "https://esm.sh/googleapis@126.0.1"
@@ -16,7 +17,7 @@ serve(async (req) => {
   try {
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     )
 
     // Get the request body
@@ -44,7 +45,7 @@ serve(async (req) => {
     const auth = new google.auth.OAuth2(
       Deno.env.get("GOOGLE_CLIENT_ID"),
       Deno.env.get("GOOGLE_CLIENT_SECRET"),
-      Deno.env.get("GOOGLE_REDIRECT_URI")
+      Deno.env.get("GOOGLE_REDIRECT_URI"),
     )
 
     auth.setCredentials({
@@ -84,21 +85,15 @@ serve(async (req) => {
 
     if (updateError) throw updateError
 
-    return new Response(
-      JSON.stringify({ success: true }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      }
-    )
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+    })
   } catch (error) {
     console.error("Error creating calendar event:", error)
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
-      }
-    )
+    return new Response(JSON.stringify({ error: error.message }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+    })
   }
 })
