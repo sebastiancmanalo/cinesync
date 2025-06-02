@@ -225,7 +225,6 @@ export default function WatchlistPage() {
         .from("watchlist_items")
         .update({
           status: "watched",
-          watched_at: new Date().toISOString(),
         })
         .eq("id", item.id)
 
@@ -236,7 +235,7 @@ export default function WatchlistPage() {
         ...prevWatchlist!,
         watchlist_items: prevWatchlist!.watchlist_items.map((i) =>
           i.id === item.id
-            ? { ...i, status: "watched", watched_at: new Date().toISOString() }
+            ? { ...i, status: "watched" }
             : i
         )
       }))
@@ -477,8 +476,8 @@ export default function WatchlistPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Link href="/dashboard">
-                  <Button variant="ghost" size="icon">
-                    <ArrowLeft className="w-4 h-4" />
+                  <Button variant="outline" size="icon" className="bg-white/95 text-gray-900 hover:bg-gray-100 border-2">
+                    <ArrowLeft className="w-5 h-5" />
                   </Button>
                 </Link>
                 <Link href="/" className="flex items-center gap-2">
@@ -771,12 +770,8 @@ export default function WatchlistPage() {
                             {item.status === "watched" && (
                               <div className="flex items-center gap-2">
                                 <span className="text-sm text-gray-500">
-                                  Watched on {new Date(item.watched_at || "").toLocaleDateString()}
+                                  Watched
                                 </span>
-                                <Button size="sm" variant="outline" className="bg-white/95 text-gray-900">
-                                  <CalendarIcon className="w-4 h-4 mr-1" />
-                                  Rewatch
-                                </Button>
                               </div>
                             )}
                           </div>
