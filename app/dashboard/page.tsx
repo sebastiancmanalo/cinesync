@@ -1,67 +1,86 @@
 "use client"
 
+import { useEffect, useState } from "react"
+import { useAuth } from "@/contexts/auth-context"
+import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Play, Plus, Search, Clock, Users, Star, Calendar, MoreHorizontal, Filter, LogOut } from "lucide-react"
-import Link from "next/link"
-import { useState } from "react"
-import { ProtectedRoute } from "@/components/protected-route"
-import { useAuth } from "@/hooks/use-auth"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Plus, Search, Clock, Users, Star, Calendar, MoreHorizontal, Filter, LogOut, Film } from "lucide-react"
+import Link from "next/link"
+import { ProtectedRoute } from "@/components/protected-route"
 
-// Mock data
-const watchlists = [
-  {
-    id: 1,
-    name: "Movie Night with Sarah",
-    members: [
-      { name: "You", avatar: "/placeholder-user.jpg" },
-      { name: "Sarah", avatar: "/placeholder-user.jpg" },
-    ],
-    totalTime: "12h 45m",
-    itemCount: 8,
-    lastUpdated: "2 hours ago",
-  },
-  {
-    id: 2,
-    name: "Family Favorites",
-    members: [
-      { name: "You", avatar: "/placeholder-user.jpg" },
-      { name: "Mom", avatar: "/placeholder-user.jpg" },
-      { name: "Dad", avatar: "/placeholder-user.jpg" },
-      { name: "Alex", avatar: "/placeholder-user.jpg" },
-    ],
-    totalTime: "24h 30m",
-    itemCount: 15,
-    lastUpdated: "1 day ago",
-  },
-  {
-    id: 3,
-    name: "Weekend Binge",
-    members: [
-      { name: "You", avatar: "/placeholder-user.jpg" },
-      { name: "Mike", avatar: "/placeholder-user.jpg" },
-      { name: "Jenny", avatar: "/placeholder-user.jpg" },
-    ],
-    totalTime: "8h 15m",
-    itemCount: 5,
-    lastUpdated: "3 days ago",
-  },
-]
-
-const recentActivity = [
-  { user: "Sarah", action: "added", item: "The Bear (Season 3)", time: "2 hours ago" },
-  { user: "You", action: "marked as watched", item: "Dune: Part Two", time: "1 day ago" },
-  { user: "Mike", action: "voted up", item: "Succession", time: "2 days ago" },
-  { user: "Mom", action: "added", item: "The Crown", time: "3 days ago" },
-]
+interface Watchlist {
+  id: string
+  name: string
+  description?: string
+  is_public: boolean
+  created_at: string
+  watchlist_items?: any[]
+  watchlist_members?: any[]
+}
 
 export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState("")
+  const [watchlists, setWatchlists] = useState<Watchlist[]>([])
+  const [loading, setLoading] = useState(true)
   const { user, signOut } = useAuth()
+  const supabase = createClient()
+
+  useEffect(() => {
+    if (user) {
+      fetchWatchlists()
+    }
+  }, [user])
+
+  const fetchWatchlists = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("watchlists")
+        .select(`
+          *,
+          watchlist_members!inner(role),
+          watchlist_items(id, estimated_watch_time, status)
+        `)
+        .eq("watchlist_members.user_id", user?.id)
+
+      if (error) throw error
+      setWatchlists(data || [])
+    } catch (error) {
+      console.error("Error fetching watchlists:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const calculateTotalTime = (items: any[]) => {
+    return items?.reduce((total, item) => total + (item.estimated_watch_time || 0), 0) || 0
+  }
+
+  const formatTime = (minutes: number) => {
+    const hours = Math.floor(minutes / 60)
+    const mins = minutes % 60
+    if (hours > 0) {
+      return `${hours}h ${mins}m`
+    }
+    return `${mins}m`
+  }
+
+  if (loading) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400 mx-auto"></div>
+            <p className="mt-4 text-slate-400">Loading your watchlists...</p>
+          </div>
+        </div>
+      </ProtectedRoute>
+    )
+  }
 
   return (
     <ProtectedRoute>
@@ -71,8 +90,10 @@ export default function DashboardPage() {
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
               <Link href="/" className="flex items-center gap-2">
-                <Play className="w-8 h-8 text-purple-600" />
-                <span className="text-2xl font-bold text-gray-900">WatchTogether</span>
+                <Film className="w-8 h-8 text-yellow-400" />
+                <span className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">
+                  WatchTogether
+                </span>
               </Link>
 
               <div className="flex items-center gap-4">
@@ -85,10 +106,12 @@ export default function DashboardPage() {
                     className="pl-10 w-64"
                   />
                 </div>
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  New List
-                </Button>
+                <Link href="/lists/new">
+                  <Button className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black font-medium">
+                    <Plus className="w-4 h-4 mr-2" />
+                    New List
+                  </Button>
+                </Link>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Avatar className="cursor-pointer">
@@ -110,7 +133,6 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        {/* Rest of the dashboard content remains the same */}
         <div className="container mx-auto px-4 py-8">
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Main Content */}
@@ -124,7 +146,7 @@ export default function DashboardPage() {
                         <Users className="w-6 h-6 text-purple-600" />
                       </div>
                       <div>
-                        <p className="text-2xl font-bold">3</p>
+                        <p className="text-2xl font-bold">{watchlists.length}</p>
                         <p className="text-sm text-gray-600">Active Lists</p>
                       </div>
                     </div>
@@ -138,7 +160,14 @@ export default function DashboardPage() {
                         <Clock className="w-6 h-6 text-blue-600" />
                       </div>
                       <div>
-                        <p className="text-2xl font-bold">45h 30m</p>
+                        <p className="text-2xl font-bold">
+                          {formatTime(
+                            watchlists.reduce(
+                              (total, list) => total + calculateTotalTime(list.watchlist_items || []),
+                              0,
+                            ),
+                          )}
+                        </p>
                         <p className="text-sm text-gray-600">Total Watch Time</p>
                       </div>
                     </div>
@@ -152,7 +181,9 @@ export default function DashboardPage() {
                         <Star className="w-6 h-6 text-green-600" />
                       </div>
                       <div>
-                        <p className="text-2xl font-bold">28</p>
+                        <p className="text-2xl font-bold">
+                          {watchlists.reduce((total, list) => total + (list.watchlist_items?.length || 0), 0)}
+                        </p>
                         <p className="text-sm text-gray-600">Items to Watch</p>
                       </div>
                     </div>
@@ -170,50 +201,76 @@ export default function DashboardPage() {
                   </Button>
                 </div>
 
-                <div className="space-y-4">
-                  {watchlists.map((list) => (
-                    <Card key={list.id} className="hover:shadow-md transition-shadow cursor-pointer">
-                      <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <h3 className="text-lg font-semibold text-gray-900">{list.name}</h3>
-                              <Badge variant="secondary">{list.itemCount} items</Badge>
-                            </div>
+                {watchlists.length === 0 ? (
+                  <Card className="p-12 text-center">
+                    <Film className="h-16 w-16 text-gray-400 mx-auto mb-6" />
+                    <h3 className="text-xl font-semibold text-gray-900 mb-4">No watchlists yet</h3>
+                    <p className="text-gray-600 mb-6">
+                      Create your first watchlist to start tracking movies and shows with friends
+                    </p>
+                    <Link href="/lists/new">
+                      <Button className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black font-medium">
+                        <Plus className="h-5 w-5 mr-2" />
+                        Create Your First List
+                      </Button>
+                    </Link>
+                  </Card>
+                ) : (
+                  <div className="space-y-4">
+                    {watchlists.map((list) => {
+                      const totalItems = list.watchlist_items?.length || 0
+                      const totalTime = calculateTotalTime(list.watchlist_items || [])
+                      const watchedItems = list.watchlist_items?.filter((item) => item.status === "watched").length || 0
 
-                            <div className="flex items-center gap-6 text-sm text-gray-600 mb-3">
-                              <div className="flex items-center gap-1">
-                                <Clock className="w-4 h-4" />
-                                {list.totalTime}
+                      return (
+                        <Card key={list.id} className="hover:shadow-md transition-shadow cursor-pointer">
+                          <Link href={`/watchlist/${list.id}`}>
+                            <CardContent className="p-6">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-3 mb-2">
+                                    <h3 className="text-lg font-semibold text-gray-900">{list.name}</h3>
+                                    <Badge variant="secondary">{totalItems} items</Badge>
+                                    {list.is_public && <Badge variant="outline">Public</Badge>}
+                                  </div>
+
+                                  {list.description && <p className="text-sm text-gray-600 mb-3">{list.description}</p>}
+
+                                  <div className="flex items-center gap-6 text-sm text-gray-600 mb-3">
+                                    <div className="flex items-center gap-1">
+                                      <Clock className="w-4 h-4" />
+                                      {formatTime(totalTime)}
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <Users className="w-4 h-4" />
+                                      {list.watchlist_members?.length || 0} members
+                                    </div>
+                                    <span>
+                                      {watchedItems}/{totalItems} watched
+                                    </span>
+                                  </div>
+
+                                  {totalItems > 0 && (
+                                    <div className="w-full bg-gray-200 rounded-full h-2">
+                                      <div
+                                        className="bg-gradient-to-r from-pink-500 to-yellow-400 h-2 rounded-full transition-all"
+                                        style={{ width: `${(watchedItems / totalItems) * 100}%` }}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+
+                                <Button variant="ghost" size="icon">
+                                  <MoreHorizontal className="w-4 h-4" />
+                                </Button>
                               </div>
-                              <div className="flex items-center gap-1">
-                                <Users className="w-4 h-4" />
-                                {list.members.length} members
-                              </div>
-                              <span>Updated {list.lastUpdated}</span>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              {list.members.slice(0, 4).map((member, index) => (
-                                <Avatar key={index} className="w-6 h-6">
-                                  <AvatarImage src={member.avatar || "/placeholder.svg"} />
-                                  <AvatarFallback className="text-xs">{member.name.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                              ))}
-                              {list.members.length > 4 && (
-                                <span className="text-xs text-gray-500">+{list.members.length - 4} more</span>
-                              )}
-                            </div>
-                          </div>
-
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                            </CardContent>
+                          </Link>
+                        </Card>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -235,10 +292,12 @@ export default function DashboardPage() {
                   <CardTitle>Quick Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <Button className="w-full justify-start">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create New List
-                  </Button>
+                  <Link href="/lists/new">
+                    <Button className="w-full justify-start">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create New List
+                    </Button>
+                  </Link>
                   <Button variant="outline" className="w-full justify-start">
                     <Search className="w-4 h-4 mr-2" />
                     Browse Movies
@@ -250,32 +309,6 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
 
-              {/* Recent Activity */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Activity</CardTitle>
-                  <CardDescription>What's happening in your lists</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {recentActivity.map((activity, index) => (
-                      <div key={index} className="flex items-start gap-3">
-                        <Avatar className="w-8 h-8">
-                          <AvatarFallback className="text-xs">{activity.user.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm">
-                            <span className="font-medium">{activity.user}</span> {activity.action}{" "}
-                            <span className="font-medium">{activity.item}</span>
-                          </p>
-                          <p className="text-xs text-gray-500">{activity.time}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
               {/* Time Suggestion */}
               <Card className="bg-gradient-to-br from-purple-50 to-blue-50 border-purple-200">
                 <CardHeader>
@@ -284,13 +317,15 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    <div className="font-medium text-purple-900">The Menu (1h 47m)</div>
+                    <div className="font-medium text-purple-900">Ready to discover something new?</div>
                     <p className="text-sm text-purple-700">
-                      Perfect for your available time slot. Highly rated by your group!
+                      Add some movies to your watchlists to get personalized recommendations!
                     </p>
-                    <Button size="sm" className="w-full">
-                      Start Watching
-                    </Button>
+                    <Link href="/lists/new">
+                      <Button size="sm" className="w-full">
+                        Create Your First List
+                      </Button>
+                    </Link>
                   </div>
                 </CardContent>
               </Card>

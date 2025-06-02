@@ -1,83 +1,68 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Search, Clock, Star, Plus } from "lucide-react"
-import { useState } from "react"
+import { Search, Plus, Loader2 } from "lucide-react"
 import Image from "next/image"
-
-// Mock search results
-const mockSearchResults = [
-  {
-    id: 1,
-    title: "Barbie",
-    year: 2023,
-    runtime: "1h 54m",
-    poster: "/placeholder.svg?height=300&width=200",
-    rating: 7.0,
-    type: "movie",
-    streamingOn: ["HBO Max", "Amazon Prime"],
-    description:
-      "Barbie and Ken are having the time of their lives in the colorful and seemingly perfect world of Barbie Land.",
-  },
-  {
-    id: 2,
-    title: "The Last of Us",
-    year: 2023,
-    runtime: "9h 0m",
-    poster: "/placeholder.svg?height=300&width=200",
-    rating: 8.7,
-    type: "tv",
-    streamingOn: ["HBO Max"],
-    description:
-      "Twenty years after modern civilization has been destroyed, Joel, a hardened survivor, is hired to smuggle Ellie, a 14-year-old girl, out of an oppressive quarantine zone.",
-  },
-  {
-    id: 3,
-    title: "Wednesday",
-    year: 2022,
-    runtime: "8h 0m",
-    poster: "/placeholder.svg?height=300&width=200",
-    rating: 8.1,
-    type: "tv",
-    streamingOn: ["Netflix"],
-    description:
-      "Follows Wednesday Addams' years as a student at Nevermore Academy, where she attempts to master her emerging psychic ability.",
-  },
-]
+import { useDebounce } from "@/hooks/use-debounce"
+import type { TMDBSearchResult } from "@/lib/tmdb"
 
 interface MovieSearchProps {
-  onAddToWatchlist?: (movie: any) => void
+  onAddToWatchlist?: (movie: TMDBSearchResult) => void
 }
 
 export function MovieSearch({ onAddToWatchlist }: MovieSearchProps) {
   const [searchQuery, setSearchQuery] = useState("")
-  const [searchResults, setSearchResults] = useState(mockSearchResults)
+  const [searchResults, setSearchResults] = useState<TMDBSearchResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
+  const debouncedQuery = useDebounce(searchQuery, 300)
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return
+  useEffect(() => {
+    const searchMedia = async () => {
+      if (debouncedQuery.length < 2) {
+        setSearchResults([])
+        return
+      }
 
-    setIsSearching(true)
-    // Simulate API call
-    setTimeout(() => {
-      setSearchResults(mockSearchResults.filter((item) => item.title.toLowerCase().includes(searchQuery.toLowerCase())))
-      setIsSearching(false)
-    }, 500)
+      setIsSearching(true)
+      try {
+        const response = await fetch(`/api/search?query=${encodeURIComponent(debouncedQuery)}`)
+        if (!response.ok) throw new Error("Search failed")
+        const data = await response.json()
+        setSearchResults(data)
+      } catch (error) {
+        console.error("Search error:", error)
+        setSearchResults([])
+      } finally {
+        setIsSearching(false)
+      }
+    }
+
+    searchMedia()
+  }, [debouncedQuery])
+
+  const handleAddToWatchlist = (movie: TMDBSearchResult) => {
+    onAddToWatchlist?.(movie)
+    setIsOpen(false)
+    setSearchQuery("")
+    setSearchResults([])
   }
 
-  const handleAddToWatchlist = (movie: any) => {
-    onAddToWatchlist?.(movie)
-    // Show success message or close dialog
+  const getTitle = (item: TMDBSearchResult) => item.title || item.name || "Unknown Title"
+  const getYear = (item: TMDBSearchResult) => {
+    const date = item.release_date || item.first_air_date
+    return date ? new Date(date).getFullYear() : null
   }
 
   return (
-    <Dialog>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button>
+        <Button className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black font-medium">
           <Plus className="w-4 h-4 mr-2" />
           Add Movie/Show
         </Button>
@@ -96,13 +81,12 @@ export function MovieSearch({ onAddToWatchlist }: MovieSearchProps) {
                 placeholder="Search for movies and TV shows..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && handleSearch()}
                 className="pl-10"
               />
+              {isSearching && (
+                <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+              )}
             </div>
-            <Button onClick={handleSearch} disabled={isSearching}>
-              {isSearching ? "Searching..." : "Search"}
-            </Button>
           </div>
 
           {/* Search Results */}
@@ -110,14 +94,18 @@ export function MovieSearch({ onAddToWatchlist }: MovieSearchProps) {
             {searchResults.length > 0 ? (
               <div className="space-y-4">
                 {searchResults.map((item) => (
-                  <Card key={item.id} className="hover:shadow-md transition-shadow">
+                  <Card key={`${item.media_type}-${item.id}`} className="hover:shadow-md transition-shadow">
                     <CardContent className="p-4">
                       <div className="flex gap-4">
                         {/* Poster */}
                         <div className="flex-shrink-0">
                           <Image
-                            src={item.poster || "/placeholder.svg"}
-                            alt={item.title}
+                            src={
+                              item.poster_path
+                                ? `https://image.tmdb.org/t/p/w200${item.poster_path}`
+                                : "/placeholder.svg"
+                            }
+                            alt={getTitle(item)}
                             width={60}
                             height={90}
                             className="rounded-lg object-cover"
@@ -129,39 +117,25 @@ export function MovieSearch({ onAddToWatchlist }: MovieSearchProps) {
                           <div className="flex items-start justify-between mb-2">
                             <div>
                               <h3 className="font-semibold text-gray-900 mb-1">
-                                {item.title} ({item.year})
+                                {getTitle(item)} {getYear(item) && `(${getYear(item)})`}
                               </h3>
                               <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
                                 <Badge variant="outline" className="text-xs">
-                                  {item.type === "movie" ? "Movie" : "TV Show"}
+                                  {item.media_type === "movie" ? "Movie" : "TV Show"}
                                 </Badge>
-                                <div className="flex items-center gap-1">
-                                  <Clock className="w-3 h-3" />
-                                  {item.runtime}
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <Star className="w-3 h-3 text-yellow-500" />
-                                  {item.rating}
-                                </div>
                               </div>
                             </div>
-                            <Button size="sm" onClick={() => handleAddToWatchlist(item)}>
+                            <Button
+                              size="sm"
+                              onClick={() => handleAddToWatchlist(item)}
+                              className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black font-medium"
+                            >
                               <Plus className="w-4 h-4 mr-1" />
                               Add
                             </Button>
                           </div>
 
-                          <p className="text-sm text-gray-600 mb-3 line-clamp-2">{item.description}</p>
-
-                          {/* Streaming platforms */}
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-500">Available on:</span>
-                            {item.streamingOn.map((platform) => (
-                              <Badge key={platform} variant="outline" className="text-xs">
-                                {platform}
-                              </Badge>
-                            ))}
-                          </div>
+                          {item.overview && <p className="text-sm text-gray-600 mb-3 line-clamp-2">{item.overview}</p>}
                         </div>
                       </div>
                     </CardContent>
@@ -172,7 +146,9 @@ export function MovieSearch({ onAddToWatchlist }: MovieSearchProps) {
               <div className="text-center py-12">
                 <p className="text-gray-500">
                   {searchQuery
-                    ? "No results found. Try a different search term."
+                    ? isSearching
+                      ? "Searching..."
+                      : "No results found. Try a different search term."
                     : "Search for movies and TV shows to add to your watchlist."}
                 </p>
               </div>
