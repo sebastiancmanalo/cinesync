@@ -9,10 +9,13 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Plus, Search, Clock, Users, Star, Calendar, MoreHorizontal, Filter, LogOut, Film } from "lucide-react"
+import { Plus, Search, Clock, Users, Star, Calendar, MoreHorizontal, Filter, LogOut, Film, Trash2, Pencil } from "lucide-react"
 import Link from "next/link"
 import { ProtectedRoute } from "@/components/protected-route"
 import type { Watchlist, WatchlistItem, WatchlistMember } from "@/types/database"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 
 interface WatchlistWithDetails extends Watchlist {
   watchlist_items: WatchlistItem[]
@@ -25,6 +28,12 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const { user, signOut } = useAuth()
   const supabase = createClient()
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [editingWatchlist, setEditingWatchlist] = useState<WatchlistWithDetails | null>(null)
+  const [editForm, setEditForm] = useState({
+    name: "",
+    description: "",
+  })
 
   useEffect(() => {
     if (user) {
@@ -71,6 +80,49 @@ export default function DashboardPage() {
       list.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       list.description?.toLowerCase().includes(searchQuery.toLowerCase()),
   )
+
+  const handleDeleteWatchlist = async (watchlistId: string) => {
+    try {
+      const { error } = await supabase
+        .from("watchlists")
+        .delete()
+        .eq("id", watchlistId)
+
+      if (error) throw error
+
+      // Update local state after successful deletion
+      setWatchlists(watchlists.filter(list => list.id !== watchlistId))
+    } catch (error) {
+      console.error("Error deleting watchlist:", error)
+    }
+  }
+
+  const handleEditWatchlist = async () => {
+    if (!editingWatchlist) return
+
+    try {
+      const { error } = await supabase
+        .from("watchlists")
+        .update({
+          name: editForm.name,
+          description: editForm.description,
+        })
+        .eq("id", editingWatchlist.id)
+
+      if (error) throw error
+
+      // Update local state
+      setWatchlists(watchlists.map(list => 
+        list.id === editingWatchlist.id 
+          ? { ...list, name: editForm.name, description: editForm.description }
+          : list
+      ))
+      setIsEditDialogOpen(false)
+      setEditingWatchlist(null)
+    } catch (error) {
+      console.error("Error updating watchlist:", error)
+    }
+  }
 
   if (loading) {
     return (
@@ -142,7 +194,7 @@ export default function DashboardPage() {
             <div className="lg:col-span-2 space-y-8">
               {/* Quick Stats */}
               <div className="grid md:grid-cols-3 gap-4">
-                <Card>
+                <Card className="bg-white/80">
                   <CardContent className="p-6">
                     <div className="flex items-center gap-4">
                       <div className="p-3 bg-purple-100 rounded-lg">
@@ -156,7 +208,7 @@ export default function DashboardPage() {
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="bg-white/80">
                   <CardContent className="p-6">
                     <div className="flex items-center gap-4">
                       <div className="p-3 bg-yellow-50 rounded-lg">
@@ -177,7 +229,7 @@ export default function DashboardPage() {
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="bg-white/80">
                   <CardContent className="p-6">
                     <div className="flex items-center gap-4">
                       <div className="p-3 bg-orange-50 rounded-lg">
@@ -201,7 +253,7 @@ export default function DashboardPage() {
                 </div>
 
                 {filteredWatchlists.length === 0 ? (
-                  <Card className="p-12 text-center">
+                  <Card className="bg-white/80 p-12 text-center">
                     <Film className="h-16 w-16 text-gray-400 mx-auto mb-6" />
                     <h3 className="text-xl font-semibold text-gray-900 mb-4">
                       {searchQuery ? "No watchlists found" : "No watchlists yet"}
@@ -228,7 +280,7 @@ export default function DashboardPage() {
                       const watchedItems = list.watchlist_items?.filter((item) => item.status === "watched").length || 0
 
                       return (
-                        <Card key={list.id} className="hover:shadow-md transition-shadow cursor-pointer">
+                        <Card key={list.id} className="hover:shadow-md transition-shadow cursor-pointer bg-white/80">
                           <Link href={`/watchlist/${list.id}`}>
                             <CardContent className="p-6">
                               <div className="flex items-center justify-between">
@@ -265,8 +317,43 @@ export default function DashboardPage() {
                                   )}
                                 </div>
 
-                                <Button variant="ghost" size="icon">
+                                <Button variant="ghost" size="icon" className="relative">
                                   <MoreHorizontal className="w-4 h-4" />
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="absolute inset-0" />
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="bg-white/95">
+                                      <DropdownMenuItem
+                                        onClick={(e) => {
+                                          e.preventDefault()
+                                          e.stopPropagation()
+                                          setEditingWatchlist(list)
+                                          setEditForm({
+                                            name: list.name,
+                                            description: list.description || "",
+                                          })
+                                          setIsEditDialogOpen(true)
+                                        }}
+                                      >
+                                        <Pencil className="w-4 h-4 mr-2" />
+                                        Rename List
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                                        onClick={(e) => {
+                                          e.preventDefault()
+                                          e.stopPropagation()
+                                          if (confirm("Are you sure you want to delete this watchlist?")) {
+                                            handleDeleteWatchlist(list.id)
+                                          }
+                                        }}
+                                      >
+                                        <Trash2 className="w-4 h-4 mr-2" />
+                                        Delete Watchlist
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
                                 </Button>
                               </div>
                             </CardContent>
@@ -282,7 +369,7 @@ export default function DashboardPage() {
             {/* Sidebar */}
             <div className="space-y-6">
               {/* Welcome Message */}
-              <Card className="bg-gradient-to-br from-yellow-50 to-pink-50 border-yellow-200">
+              <Card className="bg-white/80">
                 <CardHeader>
                   <CardTitle className="text-yellow-700">
                     Welcome back, {user?.user_metadata?.full_name || user?.email?.split("@")[0]}!
@@ -292,7 +379,7 @@ export default function DashboardPage() {
               </Card>
 
               {/* Quick Actions */}
-              <Card>
+              <Card className="bg-white/80">
                 <CardHeader>
                   <CardTitle className="text-gray-900">Quick Actions</CardTitle>
                 </CardHeader>
@@ -315,7 +402,7 @@ export default function DashboardPage() {
               </Card>
 
               {/* Time Suggestion */}
-              <Card className="bg-gradient-to-br from-yellow-50 to-pink-50 border-yellow-200">
+              <Card className="bg-white/80">
                 <CardHeader>
                   <CardTitle className="text-gray-900">Tonight's Suggestion</CardTitle>
                   <CardDescription className="text-gray-600">Based on your 2 hour window</CardDescription>
@@ -337,6 +424,42 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* Edit Watchlist Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="bg-white/95">
+            <DialogHeader>
+              <DialogTitle>Edit Watchlist</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+                  placeholder="Enter watchlist name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={editForm.description}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
+                  placeholder="Enter watchlist description"
+                  className="min-h-[100px]"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleEditWatchlist}>Save Changes</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </ProtectedRoute>
   )
