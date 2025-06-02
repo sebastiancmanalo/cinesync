@@ -27,92 +27,75 @@ import { useState } from "react"
 import Image from "next/image"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/hooks/use-auth"
+import { useWatchlist } from "@/hooks/use-watchlist"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
-// Mock data for a specific watchlist
-const watchlistData = {
-  id: 1,
-  name: "Movie Night with Sarah",
-  description: "Our weekly movie night selections",
-  members: [
-    { name: "You", avatar: "/placeholder-user.jpg", role: "owner" },
-    { name: "Sarah", avatar: "/placeholder-user.jpg", role: "editor" },
-  ],
-  totalTime: "12h 45m",
-  itemCount: 8,
-  watchedCount: 3,
-}
-
-const watchlistItems = [
-  {
-    id: 1,
-    title: "Dune: Part Two",
-    year: 2024,
-    runtime: "2h 46m",
-    poster: "/placeholder.svg?height=300&width=200",
-    rating: 8.5,
-    votes: { up: 2, down: 0 },
-    status: "watched",
-    addedBy: "You",
-    streamingOn: ["HBO Max", "Apple TV"],
-    description:
-      "Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family.",
-  },
-  {
-    id: 2,
-    title: "The Bear",
-    year: 2024,
-    runtime: "4h 30m",
-    poster: "/placeholder.svg?height=300&width=200",
-    rating: 9.2,
-    votes: { up: 2, down: 0 },
-    status: "in-progress",
-    progress: 60,
-    addedBy: "Sarah",
-    streamingOn: ["Hulu", "Disney+"],
-    description:
-      "Season 3 - Carmen 'Carmy' Berzatto, a young chef from the fine dining world, returns to Chicago to run his deceased brother's sandwich shop.",
-  },
-  {
-    id: 3,
-    title: "Oppenheimer",
-    year: 2023,
-    runtime: "3h 0m",
-    poster: "/placeholder.svg?height=300&width=200",
-    rating: 8.8,
-    votes: { up: 1, down: 1 },
-    status: "to-watch",
-    addedBy: "You",
-    streamingOn: ["Amazon Prime", "Apple TV"],
-    description:
-      "The story of American scientist J. Robert Oppenheimer and his role in the development of the atomic bomb.",
-  },
-  {
-    id: 4,
-    title: "Everything Everywhere All at Once",
-    year: 2022,
-    runtime: "2h 19m",
-    poster: "/placeholder.svg?height=300&width=200",
-    rating: 9.1,
-    votes: { up: 2, down: 0 },
-    status: "to-watch",
-    addedBy: "Sarah",
-    streamingOn: ["Netflix", "Hulu"],
-    description:
-      "An aging Chinese immigrant is swept up in an insane adventure, where she alone can save what's important to her by connecting with the lives she could have led in other universes.",
-  },
-]
-
-export default function WatchlistPage() {
+export default function WatchlistPage({ params }: { params: { id: string } }) {
   const [searchQuery, setSearchQuery] = useState("")
   const [filter, setFilter] = useState("all")
   const { user, signOut } = useAuth()
+  const { watchlist, loading, error, updateItem, voteOnItem, removeVote } = useWatchlist(params.id)
 
-  const filteredItems = watchlistItems.filter((item) => {
-    const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesFilter = filter === "all" || item.status === filter
-    return matchesSearch && matchesFilter
-  })
+  const filteredItems =
+    watchlist?.items?.filter((item) => {
+      const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase())
+      const matchesFilter = filter === "all" || item.status === filter
+      return matchesSearch && matchesFilter
+    }) || []
+
+  const formatTime = (minutes: number | null) => {
+    if (!minutes) return "Unknown"
+    const hours = Math.floor(minutes / 60)
+    const mins = minutes % 60
+    return `${hours}h ${mins}m`
+  }
+
+  const handleStatusChange = async (itemId: string, newStatus: "to-watch" | "in-progress" | "watched") => {
+    try {
+      await updateItem(itemId, { status: newStatus })
+    } catch (error) {
+      console.error("Failed to update item status:", error)
+    }
+  }
+
+  const handleVote = async (itemId: string, voteType: "up" | "down") => {
+    try {
+      await voteOnItem(itemId, voteType)
+    } catch (error) {
+      console.error("Failed to vote:", error)
+    }
+  }
+
+  if (loading) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-600"></div>
+        </div>
+      </ProtectedRoute>
+    )
+  }
+
+  if (!watchlist) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Watchlist not found</h1>
+            <p className="text-gray-600 mb-4">
+              The watchlist you're looking for doesn't exist or you don't have access to it.
+            </p>
+            <Link href="/dashboard">
+              <Button>Back to Dashboard</Button>
+            </Link>
+          </div>
+        </div>
+      </ProtectedRoute>
+    )
+  }
+
+  const watchedCount = watchlist.items?.filter((item) => item.status === "watched").length || 0
+  const totalCount = watchlist.items?.length || 0
 
   return (
     <ProtectedRoute>
@@ -159,26 +142,31 @@ export default function WatchlistPage() {
           </div>
         </header>
 
-        {/* Rest of the component remains the same */}
         <div className="container mx-auto px-4 py-8">
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
+
           {/* Watchlist Header */}
           <div className="mb-8">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">{watchlistData.name}</h1>
-                <p className="text-gray-600 mb-4">{watchlistData.description}</p>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">{watchlist.name}</h1>
+                {watchlist.description && <p className="text-gray-600 mb-4">{watchlist.description}</p>}
 
                 <div className="flex items-center gap-6 text-sm text-gray-600">
                   <div className="flex items-center gap-1">
                     <Clock className="w-4 h-4" />
-                    {watchlistData.totalTime} total
+                    {formatTime(watchlist.total_runtime || 0)} total
                   </div>
                   <div className="flex items-center gap-1">
                     <Users className="w-4 h-4" />
-                    {watchlistData.members.length} members
+                    {watchlist.member_count || 0} members
                   </div>
                   <div>
-                    {watchlistData.watchedCount} of {watchlistData.itemCount} watched
+                    {watchedCount} of {totalCount} watched
                   </div>
                 </div>
               </div>
@@ -190,27 +178,27 @@ export default function WatchlistPage() {
             </div>
 
             {/* Progress Bar */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium">Progress</span>
-                <span className="text-sm text-gray-600">
-                  {Math.round((watchlistData.watchedCount / watchlistData.itemCount) * 100)}%
-                </span>
+            {totalCount > 0 && (
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium">Progress</span>
+                  <span className="text-sm text-gray-600">{Math.round((watchedCount / totalCount) * 100)}%</span>
+                </div>
+                <Progress value={(watchedCount / totalCount) * 100} className="h-2" />
               </div>
-              <Progress value={(watchlistData.watchedCount / watchlistData.itemCount) * 100} className="h-2" />
-            </div>
+            )}
 
             {/* Members */}
             <div className="flex items-center gap-4">
               <span className="text-sm font-medium">Members:</span>
               <div className="flex items-center gap-2">
-                {watchlistData.members.map((member, index) => (
+                {watchlist.members?.map((member, index) => (
                   <div key={index} className="flex items-center gap-2">
                     <Avatar className="w-8 h-8">
-                      <AvatarImage src={member.avatar || "/placeholder.svg"} />
-                      <AvatarFallback className="text-xs">{member.name.charAt(0)}</AvatarFallback>
+                      <AvatarImage src={member.profile?.avatar_url || "/placeholder.svg"} />
+                      <AvatarFallback className="text-xs">{member.profile?.full_name?.charAt(0) || "U"}</AvatarFallback>
                     </Avatar>
-                    <span className="text-sm">{member.name}</span>
+                    <span className="text-sm">{member.profile?.full_name || "Unknown"}</span>
                     {member.role === "owner" && (
                       <Badge variant="secondary" className="text-xs">
                         Owner
@@ -257,7 +245,7 @@ export default function WatchlistPage() {
                     {/* Poster */}
                     <div className="flex-shrink-0">
                       <Image
-                        src={item.poster || "/placeholder.svg"}
+                        src={item.poster_url || "/placeholder.svg?height=120&width=80"}
                         alt={item.title}
                         width={80}
                         height={120}
@@ -270,18 +258,20 @@ export default function WatchlistPage() {
                       <div className="flex items-start justify-between mb-2">
                         <div>
                           <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                            {item.title} ({item.year})
+                            {item.title} {item.year && `(${item.year})`}
                           </h3>
                           <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
                             <div className="flex items-center gap-1">
                               <Clock className="w-4 h-4" />
-                              {item.runtime}
+                              {formatTime(item.runtime_minutes)}
                             </div>
-                            <div className="flex items-center gap-1">
-                              <Star className="w-4 h-4 text-yellow-500" />
-                              {item.rating}
-                            </div>
-                            <span>Added by {item.addedBy}</span>
+                            {item.rating && (
+                              <div className="flex items-center gap-1">
+                                <Star className="w-4 h-4 text-yellow-500" />
+                                {item.rating}
+                              </div>
+                            )}
+                            <span>Added by {item.added_by_profile?.full_name || "Unknown"}</span>
                           </div>
                         </div>
 
@@ -298,53 +288,57 @@ export default function WatchlistPage() {
                         </div>
                       </div>
 
-                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">{item.description}</p>
+                      {item.description && (
+                        <p className="text-sm text-gray-600 mb-3 line-clamp-2">{item.description}</p>
+                      )}
 
                       {/* Progress bar for in-progress items */}
-                      {item.status === "in-progress" && item.progress && (
+                      {item.status === "in-progress" && item.progress > 0 && (
                         <div className="mb-3">
                           <Progress value={item.progress} className="h-1" />
                         </div>
                       )}
 
                       {/* Streaming platforms */}
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="text-xs text-gray-500">Available on:</span>
-                        {item.streamingOn.map((platform) => (
-                          <Badge key={platform} variant="outline" className="text-xs">
-                            {platform}
-                          </Badge>
-                        ))}
-                      </div>
+                      {item.streaming_platforms && item.streaming_platforms.length > 0 && (
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="text-xs text-gray-500">Available on:</span>
+                          {item.streaming_platforms.map((platform) => (
+                            <Badge key={platform} variant="outline" className="text-xs">
+                              {platform}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
 
                       {/* Actions */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <Button size="sm" variant="outline">
+                          <Button size="sm" variant="outline" onClick={() => handleVote(item.id, "up")}>
                             <ThumbsUp className="w-4 h-4 mr-1" />
-                            {item.votes.up}
+                            {item.votes?.filter((v) => v.vote_type === "up").length || 0}
                           </Button>
-                          <Button size="sm" variant="outline">
+                          <Button size="sm" variant="outline" onClick={() => handleVote(item.id, "down")}>
                             <ThumbsDown className="w-4 h-4 mr-1" />
-                            {item.votes.down}
+                            {item.votes?.filter((v) => v.vote_type === "down").length || 0}
                           </Button>
                         </div>
 
                         <div className="flex items-center gap-2">
                           {item.status === "to-watch" && (
-                            <Button size="sm">
+                            <Button size="sm" onClick={() => handleStatusChange(item.id, "in-progress")}>
                               <Play className="w-4 h-4 mr-1" />
                               Start Watching
                             </Button>
                           )}
                           {item.status === "in-progress" && (
-                            <Button size="sm">
-                              <Play className="w-4 h-4 mr-1" />
-                              Continue
+                            <Button size="sm" onClick={() => handleStatusChange(item.id, "watched")}>
+                              <CheckCircle className="w-4 h-4 mr-1" />
+                              Mark Watched
                             </Button>
                           )}
                           {item.status === "watched" && (
-                            <Button size="sm" variant="outline">
+                            <Button size="sm" variant="outline" onClick={() => handleStatusChange(item.id, "to-watch")}>
                               <Calendar className="w-4 h-4 mr-1" />
                               Rewatch
                             </Button>
@@ -363,7 +357,11 @@ export default function WatchlistPage() {
 
           {filteredItems.length === 0 && (
             <div className="text-center py-12">
-              <p className="text-gray-500 mb-4">No items found matching your criteria.</p>
+              <p className="text-gray-500 mb-4">
+                {searchQuery || filter !== "all"
+                  ? "No items found matching your criteria."
+                  : "This watchlist is empty."}
+              </p>
               <Button>
                 <Plus className="w-4 h-4 mr-2" />
                 Add Your First Movie or Show
