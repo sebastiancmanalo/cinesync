@@ -68,14 +68,9 @@ export default function DashboardPage() {
 
       if (memberError) throw memberError
       const watchlistIds = memberRows?.map((row) => row.watchlist_id) || []
-      if (watchlistIds.length === 0) {
-        setWatchlists([])
-        setLoading(false)
-        return
-      }
 
-      // Step 2: Fetch all those watchlists, including all members
-      const { data, error } = await supabase
+      // Step 2: Fetch all watchlists where the user is the owner
+      const { data: ownedWatchlists, error: ownerError } = await supabase
         .from("watchlists")
         .select(`
           *,
@@ -85,11 +80,36 @@ export default function DashboardPage() {
           ),
           watchlist_items(*)
         `)
-        .in("id", watchlistIds)
+        .eq("created_by_user_id", user?.id)
         .order("created_at", { ascending: false })
 
-      if (error) throw error
-      setWatchlists(data || [])
+      if (ownerError) throw ownerError
+
+      // Step 3: Fetch all watchlists where the user is a member (if any)
+      let memberWatchlists: any[] = []
+      if (watchlistIds.length > 0) {
+        const { data, error } = await supabase
+          .from("watchlists")
+          .select(`
+            *,
+            watchlist_members (
+              *,
+              user:users (*)
+            ),
+            watchlist_items(*)
+          `)
+          .in("id", watchlistIds)
+          .order("created_at", { ascending: false })
+        if (error) throw error
+        memberWatchlists = data || []
+      }
+
+      // Step 4: Merge and deduplicate by watchlist id
+      const allWatchlists = [...(ownedWatchlists || []), ...memberWatchlists]
+      const deduped = allWatchlists.filter((wl, idx, arr) =>
+        arr.findIndex(w => w.id === wl.id) === idx
+      )
+      setWatchlists(deduped)
     } catch (error) {
       console.error("Error fetching watchlists:", error)
     } finally {
