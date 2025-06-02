@@ -88,6 +88,7 @@ export default function WatchlistPage() {
   const [shareEmail, setShareEmail] = useState("")
   const [copySuccess, setCopySuccess] = useState(false)
   const [inviteStatus, setInviteStatus] = useState<null | { success: boolean; message: string }>(null)
+  const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false)
 
   useEffect(() => {
     if (watchlistId && user) {
@@ -467,6 +468,37 @@ export default function WatchlistPage() {
       }
     } catch (error: any) {
       setInviteStatus({ success: false, message: error.message || "Failed to send invitation." })
+    }
+  }
+
+  const handleLeaveWatchlist = async () => {
+    try {
+      const currentUserMember = watchlist?.watchlist_members.find(m => m.user_id === user?.id)
+      if (!currentUserMember) return
+
+      // Check if user is the last owner
+      if (currentUserMember.role === "owner") {
+        const ownerCount = watchlist?.watchlist_members.filter(m => m.role === "owner").length || 0
+        if (ownerCount <= 1) {
+          alert("You are the last owner. Please transfer ownership to another member before leaving.")
+          return
+        }
+      }
+
+      if (!confirm("Are you sure you want to leave this watchlist?")) return
+
+      const { error } = await supabase
+        .from("watchlist_members")
+        .delete()
+        .eq("id", currentUserMember.id)
+
+      if (error) throw error
+
+      // Redirect to dashboard after leaving
+      window.location.href = "/dashboard"
+    } catch (error) {
+      console.error("Error leaving watchlist:", error)
+      alert("Failed to leave watchlist. Please try again.")
     }
   }
 
@@ -999,6 +1031,19 @@ export default function WatchlistPage() {
                     )
                   })}
                 </div>
+
+                {/* Leave Watchlist Button */}
+                {!watchlist?.watchlist_members.find(m => m.user_id === user?.id)?.role === "owner" && (
+                  <div className="pt-4 border-t">
+                    <Button
+                      variant="destructive"
+                      onClick={() => setIsLeaveDialogOpen(true)}
+                      className="w-full"
+                    >
+                      Leave Watchlist
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
             <DialogFooter>
@@ -1057,6 +1102,26 @@ export default function WatchlistPage() {
             <DialogFooter>
               <Button onClick={handleShareViaEmail} className="bg-gradient-to-r from-pink-500 to-yellow-400 text-black font-medium border border-gray-300">
                 Send Invitation
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Leave Watchlist Confirmation Dialog */}
+        <Dialog open={isLeaveDialogOpen} onOpenChange={setIsLeaveDialogOpen}>
+          <DialogContent className="bg-white/95">
+            <DialogHeader>
+              <DialogTitle className="bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">Leave Watchlist</DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              <p className="text-gray-900">Are you sure you want to leave this watchlist? You can rejoin later if you're invited again.</p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsLeaveDialogOpen(false)} className="bg-white/95 text-gray-900">
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleLeaveWatchlist}>
+                Leave Watchlist
               </Button>
             </DialogFooter>
           </DialogContent>
