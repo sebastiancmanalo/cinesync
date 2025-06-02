@@ -109,6 +109,7 @@ export default function DashboardPage() {
       const deduped = allWatchlists.filter((wl, idx, arr) =>
         arr.findIndex(w => w.id === wl.id) === idx
       )
+      console.log("Fetched watchlists:", deduped)
       setWatchlists(deduped)
     } catch (error) {
       console.error("Error fetching watchlists:", error)

@@ -150,6 +150,7 @@ export default function WatchlistPage() {
         .single()
 
       if (error) throw error
+      console.log("Fetched watchlist:", data)
       setWatchlist(data)
     } catch (error) {
       console.error("Error fetching watchlist:", error)
