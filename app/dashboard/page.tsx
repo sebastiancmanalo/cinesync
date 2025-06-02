@@ -23,6 +23,15 @@ interface WatchlistWithDetails extends Watchlist {
   watchlist_members: (WatchlistMember & { user: User })[]
 }
 
+interface Movie {
+  id: number
+  title: string
+  overview: string
+  poster_path: string
+  vote_average: number
+  reason: string
+}
+
 export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [watchlists, setWatchlists] = useState<WatchlistWithDetails[]>([])
@@ -37,6 +46,8 @@ export default function DashboardPage() {
     description: "",
   })
   const router = useRouter()
+  const [recommendations, setRecommendations] = useState<Movie[]>([])
+  const [recommendationsLoading, setRecommendationsLoading] = useState(true)
 
   useEffect(() => {
     if (user) {
@@ -44,6 +55,12 @@ export default function DashboardPage() {
       fetchWatchlists()
     }
   }, [user])
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchRecommendations()
+    }
+  }, [user?.id])
 
   const fetchWatchlists = async () => {
     try {
@@ -110,6 +127,21 @@ export default function DashboardPage() {
       setError(`Error: ${error.message}`)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchRecommendations = async () => {
+    try {
+      setRecommendationsLoading(true)
+      const response = await fetch(`/api/recommendations?userId=${user?.id}`)
+      const data = await response.json()
+      if (data.recommendations) {
+        setRecommendations(data.recommendations)
+      }
+    } catch (error) {
+      console.error("Error fetching recommendations:", error)
+    } finally {
+      setRecommendationsLoading(false)
     }
   }
 
@@ -515,59 +547,60 @@ export default function DashboardPage() {
                 </CardHeader>
               </Card>
 
-              {/* Quick Actions */}
+              {/* Recommendations */}
               <Card className="bg-white/95">
                 <CardHeader>
                   <CardTitle className="bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">
-                    Quick Actions
+                    Recommended for You
                   </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Button
-                    onClick={() => router.push("/lists/new")}
-                    className="w-full justify-start bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create New List
-                  </Button>
-                  <Button
-                    onClick={fetchWatchlists}
-                    className="w-full justify-start bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black"
-                  >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Refresh Data
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Status */}
-              <Card className="bg-white/95">
-                <CardHeader>
-                  <CardTitle className="bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">
-                    System Status
-                  </CardTitle>
+                  <CardDescription className="text-gray-600">
+                    Based on your watchlist and viewing history
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span>Database:</span>
-                      <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
-                        Connected
-                      </Badge>
+                  {recommendationsLoading ? (
+                    <div className="space-y-4">
+                      {[1, 2, 3].map((_, index) => (
+                        <div key={index} className="flex gap-4 p-3 rounded-lg bg-gray-50">
+                          <div className="w-20 h-30 flex-shrink-0">
+                            <div className="w-full h-full bg-gray-200 rounded animate-pulse" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="h-4 bg-gray-200 rounded w-3/4 animate-pulse mb-2" />
+                            <div className="h-3 bg-gray-200 rounded w-1/2 animate-pulse" />
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div className="flex justify-between">
-                      <span>RLS Policies:</span>
-                      <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
-                        Operational
-                      </Badge>
+                  ) : recommendations.length > 0 ? (
+                    <div className="space-y-4">
+                      {recommendations.map((movie) => (
+                        <div key={movie.id} className="flex gap-4 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+                          <div className="w-20 h-30 flex-shrink-0">
+                            <img
+                              src={`https://image.tmdb.org/t/p/w200${movie.poster_path}`}
+                              alt={movie.title}
+                              className="w-full h-full object-cover rounded"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium text-gray-900 truncate">{movie.title}</h3>
+                            <p className="text-sm text-gray-600 line-clamp-2">{movie.reason}</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div className="flex justify-between">
-                      <span>Auth:</span>
-                      <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
-                        Active
-                      </Badge>
+                  ) : (
+                    <div className="text-center py-6">
+                      <p className="text-gray-600 mb-4">Add movies to your watchlist to get personalized recommendations</p>
+                      <Button
+                        onClick={() => router.push("/lists/new")}
+                        className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black"
+                      >
+                        Create Your First List
+                      </Button>
                     </div>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
