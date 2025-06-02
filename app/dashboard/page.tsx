@@ -262,16 +262,16 @@ export default function DashboardPage() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon">
-                      <MoreHorizontal className="w-4 h-4" />
+                      <MoreHorizontal className="w-4 h-4 text-gray-600" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="bg-white/95">
-                    <DropdownMenuItem onClick={signOut}>
+                    <DropdownMenuItem onClick={signOut} className="text-gray-700 hover:text-gray-900 hover:bg-gray-100">
                       <LogOut className="w-4 h-4 mr-2" />
                       Sign Out
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
                       onClick={() => {
                         if (confirm("Are you sure you want to delete all watchlists? This action cannot be undone.")) {
                           watchlists.forEach(list => handleDeleteWatchlist(list.id))
@@ -439,7 +439,7 @@ export default function DashboardPage() {
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="icon" onClick={(e) => e.preventDefault()}>
-                                      <MoreHorizontal className="w-4 h-4" />
+                                      <MoreHorizontal className="w-4 h-4 text-gray-600 hover:text-gray-900 transition-colors" />
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end" className="bg-white/95">
@@ -456,12 +456,13 @@ export default function DashboardPage() {
                                             })
                                             setIsEditDialogOpen(true)
                                           }}
+                                          className="text-gray-700 hover:text-gray-900 hover:bg-gray-100"
                                         >
                                           <Pencil className="w-4 h-4 mr-2" />
                                           Rename List
                                         </DropdownMenuItem>
                                         <DropdownMenuItem
-                                          className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
                                           onClick={(e) => {
                                             e.preventDefault()
                                             e.stopPropagation()
@@ -476,7 +477,7 @@ export default function DashboardPage() {
                                       </>
                                     ) : (
                                       <DropdownMenuItem
-                                        className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
                                         onClick={(e) => {
                                           e.preventDefault()
                                           e.stopPropagation()
