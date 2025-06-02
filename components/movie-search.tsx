@@ -101,9 +101,9 @@ export function MovieSearch({ watchlistId }: MovieSearchProps) {
           Add Movie/Show
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col bg-white/95 border border-gray-200 shadow-xl">
         <DialogHeader>
-          <DialogTitle>Add Movies & TV Shows</DialogTitle>
+          <DialogTitle className="bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">Add Movies & TV Shows</DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden flex flex-col">
@@ -121,7 +121,7 @@ export function MovieSearch({ watchlistId }: MovieSearchProps) {
                 placeholder="Search for movies and TV shows..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="pl-10 bg-white/95 text-gray-900 border-gray-300"
               />
               {isSearching && (
                 <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
@@ -141,7 +141,7 @@ export function MovieSearch({ watchlistId }: MovieSearchProps) {
                   const year = getMediaYear(item)
 
                   return (
-                    <Card key={itemKey} className="hover:shadow-md transition-shadow">
+                    <Card key={itemKey} className="hover:shadow-md transition-shadow bg-white/95 border border-gray-200">
                       <CardContent className="p-4">
                         <div className="flex gap-4">
                           {/* Poster */}
@@ -151,7 +151,7 @@ export function MovieSearch({ watchlistId }: MovieSearchProps) {
                               alt={title}
                               width={60}
                               height={90}
-                              className="rounded-lg object-cover"
+                              className="rounded-lg object-cover bg-gray-100"
                             />
                           </div>
 
@@ -163,7 +163,7 @@ export function MovieSearch({ watchlistId }: MovieSearchProps) {
                                   {title} {year && `(${year})`}
                                 </h3>
                                 <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
-                                  <Badge variant="outline" className="text-xs">
+                                  <Badge variant="outline" className="text-xs text-gray-900 border-gray-300">
                                     {item.media_type === "movie" ? "Movie" : "TV Show"}
                                   </Badge>
                                 </div>
@@ -175,7 +175,7 @@ export function MovieSearch({ watchlistId }: MovieSearchProps) {
                                 className={
                                   isAdded
                                     ? "bg-green-500 hover:bg-green-600 text-white"
-                                    : "bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black font-medium"
+                                    : "bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black font-medium border border-gray-300"
                                 }
                               >
                                 {isAdding ? (
