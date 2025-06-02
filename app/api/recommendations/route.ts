@@ -37,11 +37,12 @@ export async function GET(request: Request) {
       .select(`
         id,
         name,
-        watchlist_items (
+        watchlist_items!inner (
+          id,
           movie_id,
           status
         ),
-        watchlist_members (
+        watchlist_members!inner (
           user_id
         )
       `)
@@ -52,13 +53,14 @@ export async function GET(request: Request) {
       throw watchlistsError
     }
 
-    console.log("Fetched watchlists:", watchlists)
+    console.log("Fetched watchlists:", JSON.stringify(watchlists, null, 2))
 
     // Extract all movie IDs from watchlists, excluding watched items
     const movieIds = watchlists
-      .flatMap((watchlist) => watchlist.watchlist_items)
+      .flatMap((watchlist) => watchlist.watchlist_items || [])
       .filter((item) => item.status !== "watched")
       .map((item) => item.movie_id)
+      .filter(Boolean) // Remove any null/undefined values
 
     console.log("Extracted movie IDs:", movieIds)
 
@@ -70,16 +72,26 @@ export async function GET(request: Request) {
     // Get movie details from TMDB
     const movieDetails = await Promise.all(
       movieIds.map(async (movieId) => {
-        const response = await fetch(
-          `${TMDB_BASE_URL}/movie/${movieId}?api_key=${TMDB_API_KEY}`
-        )
-        const data = await response.json()
-        console.log(`Fetched movie details for ID ${movieId}:`, data.title)
-        return data
+        try {
+          const response = await fetch(
+            `${TMDB_BASE_URL}/movie/${movieId}?api_key=${TMDB_API_KEY}`
+          )
+          const data = await response.json()
+          console.log(`Fetched movie details for ID ${movieId}:`, data.title)
+          return data
+        } catch (error) {
+          console.error(`Error fetching movie ${movieId}:`, error)
+          return null
+        }
       })
-    )
+    ).then(results => results.filter(Boolean)) // Remove any failed requests
 
     console.log("Movie details:", movieDetails.map(m => m.title))
+
+    if (movieDetails.length === 0) {
+      console.log("No valid movie details found")
+      return NextResponse.json({ recommendations: [] })
+    }
 
     // Create a prompt for OpenAI
     const prompt = `Based on these movies that the user has in their watchlists: ${movieDetails
@@ -109,24 +121,33 @@ export async function GET(request: Request) {
     // Get movie details from TMDB for recommended movies
     const recommendedMovies = await Promise.all(
       recommendations?.map(async (rec) => {
-        const response = await fetch(
-          `${TMDB_BASE_URL}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(
-            rec.title
-          )}`
-        )
-        const data = await response.json()
-        const movie = data.results[0]
-        console.log(`Found TMDB match for "${rec.title}":`, movie?.title)
-        return {
-          id: movie.id,
-          title: movie.title,
-          overview: movie.overview,
-          poster_path: movie.poster_path,
-          vote_average: movie.vote_average,
-          reason: rec.reason,
+        try {
+          const response = await fetch(
+            `${TMDB_BASE_URL}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(
+              rec.title
+            )}`
+          )
+          const data = await response.json()
+          const movie = data.results[0]
+          if (!movie) {
+            console.log(`No TMDB match found for "${rec.title}"`)
+            return null
+          }
+          console.log(`Found TMDB match for "${rec.title}":`, movie.title)
+          return {
+            id: movie.id,
+            title: movie.title,
+            overview: movie.overview,
+            poster_path: movie.poster_path,
+            vote_average: movie.vote_average,
+            reason: rec.reason,
+          }
+        } catch (error) {
+          console.error(`Error fetching TMDB match for "${rec.title}":`, error)
+          return null
         }
       }) || []
-    )
+    ).then(results => results.filter(Boolean)) // Remove any failed requests
 
     console.log("Final recommended movies:", recommendedMovies.map(m => m.title))
 
