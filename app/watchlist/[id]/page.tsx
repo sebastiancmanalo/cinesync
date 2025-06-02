@@ -110,6 +110,20 @@ export default function WatchlistPage() {
 
   const fetchWatchlist = async () => {
     try {
+      // First check if user has access to this watchlist
+      const { data: membership, error: membershipError } = await supabase
+        .from("watchlist_members")
+        .select("role")
+        .eq("watchlist_id", watchlistId)
+        .eq("user_id", user?.id)
+        .single()
+
+      if (membershipError || !membership) {
+        setWatchlist(null)
+        setLoading(false)
+        return
+      }
+
       const { data, error } = await supabase
         .from("watchlists")
         .select(`
