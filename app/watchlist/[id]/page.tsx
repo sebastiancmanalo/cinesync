@@ -558,7 +558,25 @@ export default function WatchlistPage() {
               </div>
 
               <div className="flex items-center gap-4">
-                <MovieSearch watchlistId={watchlistId} />
+                <div className="flex items-center gap-2">
+                  <MovieSearch watchlistId={watchlistId} />
+                  <Button
+                    variant="outline"
+                    className="bg-white/95 text-gray-900 hover:bg-gray-100"
+                    onClick={() => setIsShareDialogOpen(true)}
+                  >
+                    <Share2 className="w-4 h-4 mr-2" />
+                    Share List
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="bg-white/95 text-gray-900 hover:bg-gray-100"
+                    onClick={() => setIsMembersDialogOpen(true)}
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    Manage Members
+                  </Button>
+                </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Avatar className="cursor-pointer">
@@ -604,14 +622,6 @@ export default function WatchlistPage() {
               </div>
 
               <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  className="bg-white/95 text-gray-900 hover:bg-gray-100"
-                  onClick={() => setIsShareDialogOpen(true)}
-                >
-                  <Share2 className="w-4 h-4 mr-2" />
-                  Share List
-                </Button>
                 <Button
                   variant="outline"
                   className="bg-white/95 text-gray-900 hover:bg-gray-100"
@@ -844,42 +854,18 @@ export default function WatchlistPage() {
                               </div>
                             )}
                           </div>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button size="sm" variant="ghost" className="text-gray-900">
-                                <MoreHorizontal className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-white/95">
-                              {item.status === "watched" && (
-                                <DropdownMenuItem
-                                  onClick={(e) => {
-                                    e.preventDefault()
-                                    e.stopPropagation()
-                                    setSelectedItem(item)
-                                    setSelectedDate(item.watched_at ? new Date(item.watched_at) : new Date())
-                                    setIsDatePickerOpen(true)
-                                  }}
-                                >
-                                  <Clock className="w-4 h-4 mr-2" />
-                                  Change Watch Date
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuItem
-                                className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                                onClick={(e) => {
-                                  e.preventDefault()
-                                  e.stopPropagation()
-                                  if (confirm("Are you sure you want to delete this item?")) {
-                                    handleDeleteItem(item.id)
-                                  }
-                                }}
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Delete Item
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              if (confirm("Are you sure you want to delete this item?")) {
+                                handleDeleteItem(item.id)
+                              }
+                            }}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
                       </div>
                     </div>
