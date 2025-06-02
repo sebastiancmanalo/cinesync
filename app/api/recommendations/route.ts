@@ -31,21 +31,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "User ID is required" }, { status: 400 })
     }
 
-    // Fetch user's watchlists and their movies
+    // Step 1: Get all watchlists visible to the user (owner or member)
     const { data: watchlists, error: watchlistsError } = await supabase
       .from("watchlists")
-      .select(`
-        id,
-        name,
-        watchlist_items!inner (
-          id,
-          movie_id,
-          status
-        ),
-        watchlist_members!inner (
-          user_id
-        )
-      `)
+      .select("id, owner_id, watchlist_members(user_id)")
       .or(`owner_id.eq.${userId},watchlist_members.user_id.eq.${userId}`)
 
     if (watchlistsError) {
@@ -53,14 +42,28 @@ export async function GET(request: Request) {
       throw watchlistsError
     }
 
-    console.log("Fetched watchlists:", JSON.stringify(watchlists, null, 2))
+    const watchlistIds = watchlists?.map((w) => w.id) || []
+    if (watchlistIds.length === 0) {
+      console.log("No visible watchlists for user")
+      return NextResponse.json({ recommendations: [] })
+    }
 
-    // Extract all movie IDs from watchlists, excluding watched items
-    const movieIds = watchlists
-      .flatMap((watchlist) => watchlist.watchlist_items || [])
+    // Step 2: Get all items for those watchlists
+    const { data: items, error: itemsError } = await supabase
+      .from("watchlist_items")
+      .select("movie_id, status")
+      .in("watchlist_id", watchlistIds)
+
+    if (itemsError) {
+      console.error("Error fetching watchlist items:", itemsError)
+      throw itemsError
+    }
+
+    // Only consider unwatched items
+    const movieIds = (items || [])
       .filter((item) => item.status !== "watched")
       .map((item) => item.movie_id)
-      .filter(Boolean) // Remove any null/undefined values
+      .filter(Boolean)
 
     console.log("Extracted movie IDs:", movieIds)
 
@@ -84,7 +87,7 @@ export async function GET(request: Request) {
           return null
         }
       })
-    ).then(results => results.filter(Boolean)) // Remove any failed requests
+    ).then(results => results.filter(Boolean))
 
     console.log("Movie details:", movieDetails.map(m => m.title))
 
@@ -147,7 +150,7 @@ export async function GET(request: Request) {
           return null
         }
       }) || []
-    ).then(results => results.filter(Boolean)) // Remove any failed requests
+    ).then(results => results.filter(Boolean))
 
     console.log("Final recommended movies:", recommendedMovies.map(m => m.title))
 
