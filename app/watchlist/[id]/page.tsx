@@ -314,9 +314,30 @@ export default function WatchlistPage() {
         .eq("email", newMemberEmail.trim())
         .single()
 
-      if (userError) throw userError
+      if (userError) {
+        if (userError.code === "PGRST116") {
+          alert("User not found. Please make sure they have signed up for WatchTogether.")
+        } else {
+          throw userError
+        }
+        return
+      }
+
       if (!userData) {
-        alert("User not found")
+        alert("User not found. Please make sure they have signed up for WatchTogether.")
+        return
+      }
+
+      // Check if user is already a member
+      const { data: existingMember } = await supabase
+        .from("watchlist_members")
+        .select("id")
+        .eq("watchlist_id", watchlistId)
+        .eq("user_id", userData.id)
+        .single()
+
+      if (existingMember) {
+        alert("User is already a member of this watchlist")
         return
       }
 
@@ -324,7 +345,7 @@ export default function WatchlistPage() {
       const { error } = await supabase.from("watchlist_members").insert({
         watchlist_id: watchlistId,
         user_id: userData.id,
-        role: newMemberRole,
+        role: newMemberRole === "admin" ? "editor" : newMemberRole, // Map admin to editor
       })
 
       if (error) throw error
@@ -350,22 +371,13 @@ export default function WatchlistPage() {
         return
       }
 
-      // If changing to owner, ensure there's only one owner
-      if (newRole === "owner") {
-        const currentOwner = watchlist?.watchlist_members.find(m => m.role === "owner")
-        if (currentOwner && currentOwner.id !== memberId) {
-          // Update current owner to admin
-          await supabase
-            .from("watchlist_members")
-            .update({ role: "admin" })
-            .eq("id", currentOwner.id)
-        }
-      }
+      // Map admin to editor for database compatibility
+      const mappedRole = newRole === "admin" ? "editor" : newRole
 
       // Update member role
       const { error } = await supabase
         .from("watchlist_members")
-        .update({ role: newRole })
+        .update({ role: mappedRole })
         .eq("id", memberId)
 
       if (error) throw error
@@ -991,8 +1003,8 @@ export default function WatchlistPage() {
                               </SelectTrigger>
                               <SelectContent className="bg-white/95">
                                 <SelectItem value="owner">Owner</SelectItem>
-                                <SelectItem value="admin">Admin</SelectItem>
-                                <SelectItem value="member">Member</SelectItem>
+                                <SelectItem value="editor">Editor</SelectItem>
+                                <SelectItem value="viewer">Viewer</SelectItem>
                               </SelectContent>
                             </Select>
                           )}
