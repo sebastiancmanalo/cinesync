@@ -64,14 +64,21 @@ To enable movie and TV show search functionality, you'll need to set up the foll
 ### Phase 1: MVP (Complete)
 - [x] Shared lists, search & add titles, metadata fetching, watch time calculation
 - [x] Mark as watched/in progress
-- [x] Modern UI with cinema theming
+- [x] Modern UI with cinema theming and consistent design language
 - [x] User authentication with Google
+- [x] Gradient-based color scheme with yellow-to-pink theme
+- [x] Improved text contrast and readability
+- [x] Consistent button styles and hover states
+- [x] Enhanced comment box visibility
 
 ### Phase 2: V1 Launch (In Progress)
 - [ ] Platform availability info
 - [x] Voting and smart sorting
-- [ ] Invite flows and link-sharing
+- [x] Invite flows and link-sharing
 - [x] Responsive mobile UX
+- [x] Share functionality via link or email
+- [x] Member management with role-based permissions
+- [x] Progress tracking with visual indicators
 
 ### Phase 3: Growth & Polish (Upcoming)
 - [ ] Calendar sync
