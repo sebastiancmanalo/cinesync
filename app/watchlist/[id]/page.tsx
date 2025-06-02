@@ -42,6 +42,10 @@ import type { Watchlist, WatchlistItem, WatchlistMember, User, Vote, Comment } f
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Calendar as CalendarIcon } from "lucide-react"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { format } from "date-fns"
 
 interface WatchlistWithDetails extends Watchlist {
   watchlist_items: (WatchlistItem & {
@@ -72,6 +76,9 @@ export default function WatchlistPage() {
   const [isMembersDialogOpen, setIsMembersDialogOpen] = useState(false)
   const [newMemberEmail, setNewMemberEmail] = useState("")
   const [newMemberRole, setNewMemberRole] = useState("member")
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
+  const [selectedItem, setSelectedItem] = useState<WatchlistItem | null>(null)
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
 
   useEffect(() => {
     if (watchlistId && user) {
@@ -97,7 +104,10 @@ export default function WatchlistPage() {
           watchlist_items (
             *,
             votes (*),
-            comments (*),
+            comments (
+              *,
+              user:users (*)
+            ),
             added_by_user:users!watchlist_items_added_by_fkey (*)
           ),
           watchlist_members (
@@ -196,18 +206,58 @@ export default function WatchlistPage() {
     }
   }
 
-  const handleMarkAsWatched = async (itemId: string) => {
+  const handleMarkAsWatched = async (item: WatchlistItem) => {
     try {
-      await supabase
+      const { error } = await supabase
         .from("watchlist_items")
-        .update({ 
+        .update({
           status: "watched",
-          watched_at: new Date().toISOString()
+          watched_at: new Date().toISOString(),
         })
-        .eq("id", itemId)
-      fetchWatchlist()
+        .eq("id", item.id)
+
+      if (error) throw error
+
+      // Update local state
+      setWatchlist(prevWatchlist => ({
+        ...prevWatchlist!,
+        watchlist_items: prevWatchlist!.watchlist_items.map((i) =>
+          i.id === item.id
+            ? { ...i, status: "watched", watched_at: new Date().toISOString() }
+            : i
+        )
+      }))
     } catch (error) {
-      console.error("Error marking as watched:", error)
+      console.error("Error marking item as watched:", error)
+    }
+  }
+
+  const handleUpdateWatchDate = async () => {
+    if (!selectedItem) return
+
+    try {
+      const { error } = await supabase
+        .from("watchlist_items")
+        .update({
+          watched_at: selectedDate.toISOString(),
+        })
+        .eq("id", selectedItem.id)
+
+      if (error) throw error
+
+      // Update local state
+      setWatchlist(prevWatchlist => ({
+        ...prevWatchlist!,
+        watchlist_items: prevWatchlist!.watchlist_items.map((i) =>
+          i.id === selectedItem.id
+            ? { ...i, watched_at: selectedDate.toISOString() }
+            : i
+        )
+      }))
+      setIsDatePickerOpen(false)
+      setSelectedItem(null)
+    } catch (error) {
+      console.error("Error updating watch date:", error)
     }
   }
 
@@ -600,7 +650,9 @@ export default function WatchlistPage() {
                             {item.comments.slice(0, 2).map((comment) => (
                               <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
                                 <div className="flex items-center gap-2 mb-1">
-                                  <span className="text-sm font-medium">User</span>
+                                  <span className="text-sm font-medium">
+                                    {comment.user?.full_name || comment.user?.email || "Anonymous"}
+                                  </span>
                                   <span className="text-xs text-gray-500">
                                     {new Date(comment.created_at).toLocaleDateString()}
                                   </span>
@@ -649,7 +701,7 @@ export default function WatchlistPage() {
                             {item.status === "watching" && (
                               <Button
                                 size="sm"
-                                onClick={handleMarkAsWatched}
+                                onClick={() => handleMarkAsWatched(item)}
                               >
                                 <CheckCircle className="w-4 h-4 mr-1" />
                                 Mark as Watched
@@ -674,9 +726,29 @@ export default function WatchlistPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="bg-white/95">
+                              {item.status === "watched" && (
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    setSelectedItem(item)
+                                    setSelectedDate(item.watched_at ? new Date(item.watched_at) : new Date())
+                                    setIsDatePickerOpen(true)
+                                  }}
+                                >
+                                  <Clock className="w-4 h-4 mr-2" />
+                                  Change Watch Date
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem
                                 className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                                onClick={() => handleDeleteItem(item.id)}
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  if (confirm("Are you sure you want to delete this item?")) {
+                                    handleDeleteItem(item.id)
+                                  }
+                                }}
                               >
                                 <Trash2 className="w-4 h-4 mr-2" />
                                 Delete Item
@@ -814,6 +886,29 @@ export default function WatchlistPage() {
             </div>
             <DialogFooter>
               <Button onClick={() => setIsMembersDialogOpen(false)}>Done</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Watch Date Picker Dialog */}
+        <Dialog open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+          <DialogContent className="bg-white/95">
+            <DialogHeader>
+              <DialogTitle>Change Watch Date</DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(date) => date && setSelectedDate(date)}
+                className="rounded-md border"
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDatePickerOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleUpdateWatchDate}>Save Date</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
