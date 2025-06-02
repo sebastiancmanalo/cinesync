@@ -79,7 +79,7 @@ export default function WatchlistPage() {
   const supabase = createClient()
   const [isMembersDialogOpen, setIsMembersDialogOpen] = useState(false)
   const [newMemberEmail, setNewMemberEmail] = useState("")
-  const [newMemberRole, setNewMemberRole] = useState("member")
+  const [newMemberRole, setNewMemberRole] = useState("viewer")
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<WatchlistItem | null>(null)
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
@@ -361,13 +361,13 @@ export default function WatchlistPage() {
       const { error } = await supabase.from("watchlist_members").insert({
         watchlist_id: watchlistId,
         user_id: userData.id,
-        role: newMemberRole === "admin" ? "editor" : newMemberRole, // Map admin to editor
+        role: newMemberRole,
       })
 
       if (error) throw error
 
       setNewMemberEmail("")
-      setNewMemberRole("member")
+      setNewMemberRole("viewer")
       await fetchWatchlist()
     } catch (error) {
       console.error("Error adding member:", error)
@@ -387,13 +387,10 @@ export default function WatchlistPage() {
         return
       }
 
-      // Map admin to editor for database compatibility
-      const mappedRole = newRole === "admin" ? "editor" : newRole
-
       // Update member role
       const { error } = await supabase
         .from("watchlist_members")
-        .update({ role: mappedRole })
+        .update({ role: newRole })
         .eq("id", memberId)
 
       if (error) throw error
@@ -930,8 +927,8 @@ export default function WatchlistPage() {
                       <SelectValue placeholder="Role" />
                     </SelectTrigger>
                     <SelectContent className="bg-white/95">
-                      <SelectItem value="member">Member</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="viewer">Viewer</SelectItem>
+                      <SelectItem value="editor">Editor</SelectItem>
                     </SelectContent>
                   </Select>
                   <Button onClick={handleAddMember} className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black">
