@@ -3,7 +3,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { AlertCircle, Film, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 
-export default function AuthCodeErrorPage() {
+interface Props {
+  searchParams: {
+    error?: string
+    description?: string
+  }
+}
+
+export default function AuthCodeErrorPage({ searchParams }: Props) {
+  const { error, description } = searchParams
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Header */}
@@ -38,6 +47,13 @@ export default function AuthCodeErrorPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {error && (
+                <div className="p-4 bg-red-900/30 border border-red-700/50 rounded-lg">
+                  <p className="text-sm font-medium text-red-300 mb-1">Error Code: {error}</p>
+                  {description && <p className="text-sm text-red-300">{description}</p>}
+                </div>
+              )}
+
               <div className="text-center">
                 <p className="text-sm text-slate-300 mb-6">
                   Please try signing in again. If the problem persists, contact support.
@@ -57,6 +73,15 @@ export default function AuthCodeErrorPage() {
                     </Button>
                   </Link>
                 </div>
+              </div>
+
+              {/* Debug Information */}
+              <div className="text-xs text-slate-500 space-y-1 pt-4 border-t border-slate-600">
+                <p>Debug Information:</p>
+                <p>Timestamp: {new Date().toISOString()}</p>
+                <p>Environment: {process.env.NODE_ENV}</p>
+                {error && <p>Error: {error}</p>}
+                {description && <p>Description: {description}</p>}
               </div>
             </CardContent>
           </Card>

@@ -51,15 +51,6 @@ export interface Comment {
   updated_at: string
 }
 
-export interface ItemComment {
-  id: string
-  item_id: string
-  user_id: string
-  comment: string
-  created_at: string
-  updated_at: string
-}
-
 export interface Vote {
   id: string
   watchlist_item_id: string
@@ -75,4 +66,13 @@ export interface ItemVote {
   user_id: string
   vote_type: string
   created_at: string
+}
+
+export interface ItemComment {
+  id: string
+  item_id: string
+  user_id: string
+  comment: string
+  created_at: string
+  updated_at: string
 }

@@ -203,3 +203,78 @@ export async function updateWatchlistItemStatus(itemId: string, status: "to_watc
     return { success: false, error: error.message || "Failed to update item status" }
   }
 }
+
+export async function addVote(itemId: string, voteType: "up" | "down") {
+  const supabase = await createClient()
+
+  try {
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      throw new Error("Authentication required")
+    }
+
+    // Check if user already voted
+    const { data: existingVote } = await supabase
+      .from("votes")
+      .select("id, vote_type")
+      .eq("watchlist_item_id", itemId)
+      .eq("user_id", user.id)
+      .single()
+
+    if (existingVote) {
+      if (existingVote.vote_type === voteType) {
+        // Remove vote if clicking same type
+        await supabase.from("votes").delete().eq("id", existingVote.id)
+      } else {
+        // Update vote type
+        await supabase.from("votes").update({ vote_type: voteType }).eq("id", existingVote.id)
+      }
+    } else {
+      // Create new vote
+      await supabase.from("votes").insert({
+        watchlist_item_id: itemId,
+        user_id: user.id,
+        vote_type: voteType,
+      })
+    }
+
+    return { success: true }
+  } catch (error: any) {
+    console.error("Error voting:", error)
+    return { success: false, error: error.message || "Failed to vote" }
+  }
+}
+
+export async function addComment(itemId: string, content: string) {
+  const supabase = await createClient()
+
+  try {
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      throw new Error("Authentication required")
+    }
+
+    const { error: insertError } = await supabase.from("comments").insert({
+      watchlist_item_id: itemId,
+      user_id: user.id,
+      content: content.trim(),
+    })
+
+    if (insertError) {
+      throw insertError
+    }
+
+    return { success: true }
+  } catch (error: any) {
+    console.error("Error adding comment:", error)
+    return { success: false, error: error.message || "Failed to add comment" }
+  }
+}

@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Film, ArrowLeft } from "lucide-react"
+import { Film, ArrowLeft, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 import { createClient } from "@/lib/supabase/client"
@@ -10,17 +10,22 @@ import { createClient } from "@/lib/supabase/client"
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [debugInfo, setDebugInfo] = useState("")
   const supabase = createClient()
 
   const handleGoogleLogin = async () => {
     setIsLoading(true)
     setError("")
+    setDebugInfo("")
 
     try {
-      // Get the current origin (works for both localhost and production)
-      const redirectTo = `${window.location.origin}/auth/callback`
+      // Log current environment for debugging
+      const currentUrl = window.location.origin
+      const redirectTo = `${currentUrl}/auth/callback`
 
-      const { error } = await supabase.auth.signInWithOAuth({
+      setDebugInfo(`Attempting OAuth with redirect: ${redirectTo}`)
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo,
@@ -28,11 +33,13 @@ export default function LoginPage() {
       })
 
       if (error) {
-        setError(error.message)
+        setError(`OAuth Error: ${error.message}`)
         setIsLoading(false)
+      } else {
+        setDebugInfo("OAuth initiated successfully, redirecting...")
       }
-    } catch (err) {
-      setError("An unexpected error occurred")
+    } catch (err: any) {
+      setError(`Unexpected error: ${err.message}`)
       setIsLoading(false)
     }
   }
@@ -75,7 +82,17 @@ export default function LoginPage() {
             <CardContent className="space-y-6">
               {error && (
                 <div className="p-4 bg-red-900/30 border border-red-700/50 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertCircle className="w-4 h-4 text-red-400" />
+                    <span className="text-sm font-medium text-red-300">Authentication Error</span>
+                  </div>
                   <p className="text-sm text-red-300">{error}</p>
+                </div>
+              )}
+
+              {debugInfo && (
+                <div className="p-4 bg-blue-900/30 border border-blue-700/50 rounded-lg">
+                  <p className="text-sm text-blue-300">{debugInfo}</p>
                 </div>
               )}
 
@@ -110,7 +127,7 @@ export default function LoginPage() {
                   <span className="w-full border-t border-slate-600" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-slate-800 px-2 text-slate-400">Secure Authentication</span>
+                  <span className="bg-slate-800 px-2 text-slate-400">Debug Mode Active</span>
                 </div>
               </div>
 
@@ -121,6 +138,13 @@ export default function LoginPage() {
                     Create one now
                   </Link>
                 </p>
+              </div>
+
+              {/* Debug Information */}
+              <div className="text-xs text-slate-500 space-y-1">
+                <p>Environment: {process.env.NODE_ENV}</p>
+                <p>Supabase URL: {process.env.NEXT_PUBLIC_SUPABASE_URL ? "✓ Set" : "✗ Missing"}</p>
+                <p>Supabase Key: {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "✓ Set" : "✗ Missing"}</p>
               </div>
             </CardContent>
           </Card>
