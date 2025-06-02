@@ -1,18 +1,21 @@
 "use client"
 
+import { useEffect, useState } from "react"
+import { useParams } from "next/navigation"
+import { useAuth } from "@/contexts/auth-context"
+import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Play,
-  Plus,
   Search,
   Clock,
   Users,
-  Star,
   ThumbsUp,
   ThumbsDown,
   MoreHorizontal,
@@ -21,100 +24,179 @@ import {
   Circle,
   ArrowLeft,
   LogOut,
+  MessageCircle,
+  Send,
 } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
 import Image from "next/image"
 import { ProtectedRoute } from "@/components/protected-route"
-import { useAuth } from "@/hooks/use-auth"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { MovieSearch } from "@/components/movie-search"
 import { updateWatchlistItemStatus } from "@/app/actions/watchlist-actions"
+import type { Watchlist, WatchlistItem, WatchlistMember, User, Vote, Comment } from "@/types/database"
 
-// Mock data for a specific watchlist
-const watchlistData = {
-  id: 1,
-  name: "Movie Night with Sarah",
-  description: "Our weekly movie night selections",
-  members: [
-    { name: "You", avatar: "/placeholder-user.jpg", role: "owner" },
-    { name: "Sarah", avatar: "/placeholder-user.jpg", role: "editor" },
-  ],
-  totalTime: "12h 45m",
-  itemCount: 8,
-  watchedCount: 3,
+interface WatchlistWithDetails extends Watchlist {
+  watchlist_items: (WatchlistItem & {
+    votes: Vote[]
+    comments: Comment[]
+    added_by_user: User
+  })[]
+  watchlist_members: (WatchlistMember & {
+    user: User
+  })[]
 }
 
-const watchlistItems = [
-  {
-    id: 1,
-    title: "Dune: Part Two",
-    year: 2024,
-    runtime: "2h 46m",
-    poster: "/placeholder.svg?height=300&width=200",
-    rating: 8.5,
-    votes: { up: 2, down: 0 },
-    status: "watched",
-    addedBy: "You",
-    streamingOn: ["HBO Max", "Apple TV"],
-    description:
-      "Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family.",
-  },
-  {
-    id: 2,
-    title: "The Bear",
-    year: 2024,
-    runtime: "4h 30m",
-    poster: "/placeholder.svg?height=300&width=200",
-    rating: 9.2,
-    votes: { up: 2, down: 0 },
-    status: "in-progress",
-    progress: 60,
-    addedBy: "Sarah",
-    streamingOn: ["Hulu", "Disney+"],
-    description:
-      "Season 3 - Carmen 'Carmy' Berzatto, a young chef from the fine dining world, returns to Chicago to run his deceased brother's sandwich shop.",
-  },
-  {
-    id: 3,
-    title: "Oppenheimer",
-    year: 2023,
-    runtime: "3h 0m",
-    poster: "/placeholder.svg?height=300&width=200",
-    rating: 8.8,
-    votes: { up: 1, down: 1 },
-    status: "to-watch",
-    addedBy: "You",
-    streamingOn: ["Amazon Prime", "Apple TV"],
-    description:
-      "The story of American scientist J. Robert Oppenheimer and his role in the development of the atomic bomb.",
-  },
-  {
-    id: 4,
-    title: "Everything Everywhere All at Once",
-    year: 2022,
-    runtime: "2h 19m",
-    poster: "/placeholder.svg?height=300&width=200",
-    rating: 9.1,
-    votes: { up: 2, down: 0 },
-    status: "to-watch",
-    addedBy: "Sarah",
-    streamingOn: ["Netflix", "Hulu"],
-    description:
-      "An aging Chinese immigrant is swept up in an insane adventure, where she alone can save what's important to her by connecting with the lives she could have led in other universes.",
-  },
-]
-
 export default function WatchlistPage() {
+  const params = useParams()
+  const watchlistId = params.id as string
+  const [watchlist, setWatchlist] = useState<WatchlistWithDetails | null>(null)
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [filter, setFilter] = useState("all")
+  const [newComment, setNewComment] = useState<{ [key: string]: string }>({})
   const { user, signOut } = useAuth()
+  const supabase = createClient()
 
-  const filteredItems = watchlistItems.filter((item) => {
+  useEffect(() => {
+    if (watchlistId && user) {
+      fetchWatchlist()
+    }
+  }, [watchlistId, user])
+
+  const fetchWatchlist = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("watchlists")
+        .select(`
+          *,
+          watchlist_items (
+            *,
+            votes (*),
+            comments (*),
+            added_by_user:users!watchlist_items_added_by_fkey (*)
+          ),
+          watchlist_members (
+            *,
+            user:users (*)
+          )
+        `)
+        .eq("id", watchlistId)
+        .single()
+
+      if (error) throw error
+      setWatchlist(data)
+    } catch (error) {
+      console.error("Error fetching watchlist:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleVote = async (itemId: string, voteType: "up" | "down") => {
+    try {
+      // Check if user already voted
+      const existingVote = watchlist?.watchlist_items
+        .find((item) => item.id === itemId)
+        ?.votes.find((vote) => vote.user_id === user?.id)
+
+      if (existingVote) {
+        if (existingVote.vote_type === voteType) {
+          // Remove vote if clicking same type
+          await supabase.from("votes").delete().eq("id", existingVote.id)
+        } else {
+          // Update vote type
+          await supabase.from("votes").update({ vote_type: voteType }).eq("id", existingVote.id)
+        }
+      } else {
+        // Create new vote
+        await supabase.from("votes").insert({
+          watchlist_item_id: itemId,
+          user_id: user?.id,
+          vote_type: voteType,
+        })
+      }
+
+      // Refresh data
+      fetchWatchlist()
+    } catch (error) {
+      console.error("Error voting:", error)
+    }
+  }
+
+  const handleAddComment = async (itemId: string) => {
+    const comment = newComment[itemId]?.trim()
+    if (!comment) return
+
+    try {
+      await supabase.from("comments").insert({
+        watchlist_item_id: itemId,
+        user_id: user?.id,
+        content: comment,
+      })
+
+      setNewComment((prev) => ({ ...prev, [itemId]: "" }))
+      fetchWatchlist()
+    } catch (error) {
+      console.error("Error adding comment:", error)
+    }
+  }
+
+  const formatTime = (minutes: number) => {
+    const hours = Math.floor(minutes / 60)
+    const mins = minutes % 60
+    if (hours > 0) {
+      return `${hours}h ${mins}m`
+    }
+    return `${mins}m`
+  }
+
+  const getVoteCounts = (votes: Vote[]) => {
+    const upVotes = votes.filter((v) => v.vote_type === "up").length
+    const downVotes = votes.filter((v) => v.vote_type === "down").length
+    return { upVotes, downVotes }
+  }
+
+  const getUserVote = (votes: Vote[]) => {
+    return votes.find((v) => v.user_id === user?.id)?.vote_type
+  }
+
+  if (loading) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400 mx-auto"></div>
+            <p className="mt-4 text-slate-400">Loading watchlist...</p>
+          </div>
+        </div>
+      </ProtectedRoute>
+    )
+  }
+
+  if (!watchlist) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Watchlist not found</h1>
+            <Link href="/dashboard">
+              <Button>Back to Dashboard</Button>
+            </Link>
+          </div>
+        </div>
+      </ProtectedRoute>
+    )
+  }
+
+  const filteredItems = watchlist.watchlist_items.filter((item) => {
     const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesFilter = filter === "all" || item.status === filter
     return matchesSearch && matchesFilter
   })
+
+  const totalItems = watchlist.watchlist_items.length
+  const watchedItems = watchlist.watchlist_items.filter((item) => item.status === "watched").length
+  const totalTime = watchlist.watchlist_items.reduce((total, item) => total + item.estimated_watch_time, 0)
 
   return (
     <ProtectedRoute>
@@ -136,7 +218,7 @@ export default function WatchlistPage() {
               </div>
 
               <div className="flex items-center gap-4">
-                <MovieSearch watchlistId={watchlistData.id} />
+                <MovieSearch watchlistId={watchlistId} />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Avatar className="cursor-pointer">
@@ -158,26 +240,25 @@ export default function WatchlistPage() {
           </div>
         </header>
 
-        {/* Rest of the component remains the same */}
         <div className="container mx-auto px-4 py-8">
           {/* Watchlist Header */}
           <div className="mb-8">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">{watchlistData.name}</h1>
-                <p className="text-gray-600 mb-4">{watchlistData.description}</p>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">{watchlist.name}</h1>
+                {watchlist.description && <p className="text-gray-600 mb-4">{watchlist.description}</p>}
 
                 <div className="flex items-center gap-6 text-sm text-gray-600">
                   <div className="flex items-center gap-1">
                     <Clock className="w-4 h-4" />
-                    {watchlistData.totalTime} total
+                    {formatTime(totalTime)} total
                   </div>
                   <div className="flex items-center gap-1">
                     <Users className="w-4 h-4" />
-                    {watchlistData.members.length} members
+                    {watchlist.watchlist_members.length} members
                   </div>
                   <div>
-                    {watchlistData.watchedCount} of {watchlistData.itemCount} watched
+                    {watchedItems} of {totalItems} watched
                   </div>
                 </div>
               </div>
@@ -189,32 +270,32 @@ export default function WatchlistPage() {
             </div>
 
             {/* Progress Bar */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium">Progress</span>
-                <span className="text-sm text-gray-600">
-                  {Math.round((watchlistData.watchedCount / watchlistData.itemCount) * 100)}%
-                </span>
+            {totalItems > 0 && (
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium">Progress</span>
+                  <span className="text-sm text-gray-600">{Math.round((watchedItems / totalItems) * 100)}%</span>
+                </div>
+                <Progress value={(watchedItems / totalItems) * 100} className="h-2" />
               </div>
-              <Progress value={(watchlistData.watchedCount / watchlistData.itemCount) * 100} className="h-2" />
-            </div>
+            )}
 
             {/* Members */}
             <div className="flex items-center gap-4">
               <span className="text-sm font-medium">Members:</span>
               <div className="flex items-center gap-2">
-                {watchlistData.members.map((member, index) => (
-                  <div key={index} className="flex items-center gap-2">
+                {watchlist.watchlist_members.map((member) => (
+                  <div key={member.id} className="flex items-center gap-2">
                     <Avatar className="w-8 h-8">
-                      <AvatarImage src={member.avatar || "/placeholder.svg"} />
-                      <AvatarFallback className="text-xs">{member.name.charAt(0)}</AvatarFallback>
+                      <AvatarImage src={member.user.avatar_url || "/placeholder.svg"} />
+                      <AvatarFallback className="text-xs">
+                        {member.user.full_name?.charAt(0) || member.user.email?.charAt(0) || "U"}
+                      </AvatarFallback>
                     </Avatar>
-                    <span className="text-sm">{member.name}</span>
-                    {member.role === "owner" && (
-                      <Badge variant="secondary" className="text-xs">
-                        Owner
-                      </Badge>
-                    )}
+                    <span className="text-sm">{member.user.full_name || member.user.email}</span>
+                    <Badge variant="secondary" className="text-xs">
+                      {member.role}
+                    </Badge>
                   </div>
                 ))}
               </div>
@@ -234,145 +315,185 @@ export default function WatchlistPage() {
             </div>
 
             <div className="flex gap-2">
-              {["all", "to-watch", "in-progress", "watched"].map((filterOption) => (
+              {["all", "to_watch", "watching", "watched"].map((filterOption) => (
                 <Button
                   key={filterOption}
                   variant={filter === filterOption ? "default" : "outline"}
                   size="sm"
                   onClick={() => setFilter(filterOption)}
                 >
-                  {filterOption.replace("-", " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                  {filterOption.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase())}
                 </Button>
               ))}
             </div>
           </div>
 
           {/* Watchlist Items */}
-          <div className="space-y-4">
-            {filteredItems.map((item) => (
-              <Card key={item.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex gap-6">
-                    {/* Poster */}
-                    <div className="flex-shrink-0">
-                      <Image
-                        src={item.poster || "/placeholder.svg"}
-                        alt={item.title}
-                        width={80}
-                        height={120}
-                        className="rounded-lg object-cover"
-                      />
-                    </div>
+          <div className="space-y-6">
+            {filteredItems.map((item) => {
+              const { upVotes, downVotes } = getVoteCounts(item.votes)
+              const userVote = getUserVote(item.votes)
 
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                            {item.title} ({item.year})
-                          </h3>
-                          <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
-                            <div className="flex items-center gap-1">
-                              <Clock className="w-4 h-4" />
-                              {item.runtime}
+              return (
+                <Card key={item.id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex gap-6">
+                      {/* Poster */}
+                      <div className="flex-shrink-0">
+                        <Image
+                          src={
+                            item.poster_path ? `https://image.tmdb.org/t/p/w200${item.poster_path}` : "/placeholder.svg"
+                          }
+                          alt={item.title}
+                          width={80}
+                          height={120}
+                          className="rounded-lg object-cover"
+                        />
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                              {item.title} ({item.release_date ? new Date(item.release_date).getFullYear() : "N/A"})
+                            </h3>
+                            <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-4 h-4" />
+                                {formatTime(item.estimated_watch_time)}
+                              </div>
+                              <Badge variant="outline" className="text-xs">
+                                {item.media_type === "movie" ? "Movie" : "TV Show"}
+                              </Badge>
+                              <span>Added by {item.added_by_user?.full_name || item.added_by_user?.email}</span>
                             </div>
-                            <div className="flex items-center gap-1">
-                              <Star className="w-4 h-4 text-yellow-500" />
-                              {item.rating}
-                            </div>
-                            <span>Added by {item.addedBy}</span>
+                          </div>
+
+                          {/* Status Icon */}
+                          <div className="flex items-center gap-2">
+                            {item.status === "watched" && <CheckCircle className="w-5 h-5 text-green-500" />}
+                            {item.status === "watching" && <Circle className="w-5 h-5 text-blue-500" />}
+                            {item.status === "to_watch" && <Circle className="w-5 h-5 text-gray-400" />}
                           </div>
                         </div>
 
-                        {/* Status Icon */}
-                        <div className="flex items-center gap-2">
-                          {item.status === "watched" && <CheckCircle className="w-5 h-5 text-green-500" />}
-                          {item.status === "in-progress" && (
-                            <div className="flex items-center gap-2">
-                              <Circle className="w-5 h-5 text-blue-500" />
-                              <span className="text-sm text-blue-600">{item.progress}%</span>
-                            </div>
-                          )}
-                          {item.status === "to-watch" && <Circle className="w-5 h-5 text-gray-400" />}
-                        </div>
-                      </div>
+                        {item.overview && <p className="text-sm text-gray-600 mb-4 line-clamp-2">{item.overview}</p>}
 
-                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">{item.description}</p>
-
-                      {/* Progress bar for in-progress items */}
-                      {item.status === "in-progress" && item.progress && (
-                        <div className="mb-3">
-                          <Progress value={item.progress} className="h-1" />
-                        </div>
-                      )}
-
-                      {/* Streaming platforms */}
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="text-xs text-gray-500">Available on:</span>
-                        {item.streamingOn.map((platform) => (
-                          <Badge key={platform} variant="outline" className="text-xs">
-                            {platform}
-                          </Badge>
-                        ))}
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Button size="sm" variant="outline">
-                            <ThumbsUp className="w-4 h-4 mr-1" />
-                            {item.votes.up}
-                          </Button>
-                          <Button size="sm" variant="outline">
-                            <ThumbsDown className="w-4 h-4 mr-1" />
-                            {item.votes.down}
-                          </Button>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          {item.status === "to-watch" && (
+                        {/* Voting */}
+                        <div className="flex items-center gap-4 mb-4">
+                          <div className="flex items-center gap-2">
                             <Button
                               size="sm"
-                              onClick={async () => {
-                                await updateWatchlistItemStatus(item.id, "watching")
-                                // Refresh the page or update state
-                              }}
+                              variant={userVote === "up" ? "default" : "outline"}
+                              onClick={() => handleVote(item.id, "up")}
                             >
-                              <Play className="w-4 h-4 mr-1" />
-                              Start Watching
+                              <ThumbsUp className="w-4 h-4 mr-1" />
+                              {upVotes}
                             </Button>
-                          )}
-                          {item.status === "in-progress" && (
-                            <Button size="sm">
-                              <Play className="w-4 h-4 mr-1" />
-                              Continue
+                            <Button
+                              size="sm"
+                              variant={userVote === "down" ? "default" : "outline"}
+                              onClick={() => handleVote(item.id, "down")}
+                            >
+                              <ThumbsDown className="w-4 h-4 mr-1" />
+                              {downVotes}
                             </Button>
-                          )}
-                          {item.status === "watched" && (
-                            <Button size="sm" variant="outline">
-                              <Calendar className="w-4 h-4 mr-1" />
-                              Rewatch
-                            </Button>
-                          )}
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <MessageCircle className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm text-gray-500">{item.comments.length} comments</span>
+                          </div>
+                        </div>
+
+                        {/* Comments */}
+                        {item.comments.length > 0 && (
+                          <div className="mb-4 space-y-2">
+                            {item.comments.slice(0, 2).map((comment) => (
+                              <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-sm font-medium">User</span>
+                                  <span className="text-xs text-gray-500">
+                                    {new Date(comment.created_at).toLocaleDateString()}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-gray-700">{comment.content}</p>
+                              </div>
+                            ))}
+                            {item.comments.length > 2 && (
+                              <p className="text-sm text-gray-500">+{item.comments.length - 2} more comments</p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Add Comment */}
+                        <div className="flex gap-2 mb-4">
+                          <Textarea
+                            placeholder="Add a comment..."
+                            value={newComment[item.id] || ""}
+                            onChange={(e) => setNewComment((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                            className="flex-1 min-h-[60px]"
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() => handleAddComment(item.id)}
+                            disabled={!newComment[item.id]?.trim()}
+                          >
+                            <Send className="w-4 h-4" />
+                          </Button>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {item.status === "to_watch" && (
+                              <Button
+                                size="sm"
+                                onClick={async () => {
+                                  await updateWatchlistItemStatus(item.id, "watching")
+                                  fetchWatchlist()
+                                }}
+                              >
+                                <Play className="w-4 h-4 mr-1" />
+                                Start Watching
+                              </Button>
+                            )}
+                            {item.status === "watching" && (
+                              <Button
+                                size="sm"
+                                onClick={async () => {
+                                  await updateWatchlistItemStatus(item.id, "watched")
+                                  fetchWatchlist()
+                                }}
+                              >
+                                <CheckCircle className="w-4 h-4 mr-1" />
+                                Mark as Watched
+                              </Button>
+                            )}
+                            {item.status === "watched" && (
+                              <Button size="sm" variant="outline">
+                                <Calendar className="w-4 h-4 mr-1" />
+                                Rewatch
+                              </Button>
+                            )}
+                          </div>
                           <Button size="sm" variant="ghost">
                             <MoreHorizontal className="w-4 h-4" />
                           </Button>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              )
+            })}
           </div>
 
           {filteredItems.length === 0 && (
             <div className="text-center py-12">
               <p className="text-gray-500 mb-4">No items found matching your criteria.</p>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Your First Movie or Show
-              </Button>
+              <MovieSearch watchlistId={watchlistId} />
             </div>
           )}
         </div>

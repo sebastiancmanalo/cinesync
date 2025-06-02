@@ -12,20 +12,16 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Plus, Search, Clock, Users, Star, Calendar, MoreHorizontal, Filter, LogOut, Film } from "lucide-react"
 import Link from "next/link"
 import { ProtectedRoute } from "@/components/protected-route"
+import type { Watchlist, WatchlistItem, WatchlistMember } from "@/types/database"
 
-interface Watchlist {
-  id: string
-  name: string
-  description?: string
-  is_public: boolean
-  created_at: string
-  watchlist_items?: any[]
-  watchlist_members?: any[]
+interface WatchlistWithDetails extends Watchlist {
+  watchlist_items: WatchlistItem[]
+  watchlist_members: WatchlistMember[]
 }
 
 export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState("")
-  const [watchlists, setWatchlists] = useState<Watchlist[]>([])
+  const [watchlists, setWatchlists] = useState<WatchlistWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const { user, signOut } = useAuth()
   const supabase = createClient()
@@ -43,9 +39,10 @@ export default function DashboardPage() {
         .select(`
           *,
           watchlist_members!inner(role),
-          watchlist_items(id, estimated_watch_time, status)
+          watchlist_items(*)
         `)
         .eq("watchlist_members.user_id", user?.id)
+        .order("created_at", { ascending: false })
 
       if (error) throw error
       setWatchlists(data || [])
@@ -56,7 +53,7 @@ export default function DashboardPage() {
     }
   }
 
-  const calculateTotalTime = (items: any[]) => {
+  const calculateTotalTime = (items: WatchlistItem[]) => {
     return items?.reduce((total, item) => total + (item.estimated_watch_time || 0), 0) || 0
   }
 
@@ -68,6 +65,12 @@ export default function DashboardPage() {
     }
     return `${mins}m`
   }
+
+  const filteredWatchlists = watchlists.filter(
+    (list) =>
+      list.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      list.description?.toLowerCase().includes(searchQuery.toLowerCase()),
+  )
 
   if (loading) {
     return (
@@ -100,7 +103,7 @@ export default function DashboardPage() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
-                    placeholder="Search watchlists or movies..."
+                    placeholder="Search watchlists..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10 w-64"
@@ -201,23 +204,29 @@ export default function DashboardPage() {
                   </Button>
                 </div>
 
-                {watchlists.length === 0 ? (
+                {filteredWatchlists.length === 0 ? (
                   <Card className="p-12 text-center">
                     <Film className="h-16 w-16 text-gray-400 mx-auto mb-6" />
-                    <h3 className="text-xl font-semibold text-gray-900 mb-4">No watchlists yet</h3>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-4">
+                      {searchQuery ? "No watchlists found" : "No watchlists yet"}
+                    </h3>
                     <p className="text-gray-600 mb-6">
-                      Create your first watchlist to start tracking movies and shows with friends
+                      {searchQuery
+                        ? "Try adjusting your search terms"
+                        : "Create your first watchlist to start tracking movies and shows with friends"}
                     </p>
-                    <Link href="/lists/new">
-                      <Button className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black font-medium">
-                        <Plus className="h-5 w-5 mr-2" />
-                        Create Your First List
-                      </Button>
-                    </Link>
+                    {!searchQuery && (
+                      <Link href="/lists/new">
+                        <Button className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black font-medium">
+                          <Plus className="h-5 w-5 mr-2" />
+                          Create Your First List
+                        </Button>
+                      </Link>
+                    )}
                   </Card>
                 ) : (
                   <div className="space-y-4">
-                    {watchlists.map((list) => {
+                    {filteredWatchlists.map((list) => {
                       const totalItems = list.watchlist_items?.length || 0
                       const totalTime = calculateTotalTime(list.watchlist_items || [])
                       const watchedItems = list.watchlist_items?.filter((item) => item.status === "watched").length || 0
