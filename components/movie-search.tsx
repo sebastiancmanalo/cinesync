@@ -6,20 +6,25 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Search, Plus, Loader2 } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Search, Plus, Loader2, CheckCircle } from "lucide-react"
 import Image from "next/image"
 import { useDebounce } from "@/hooks/use-debounce"
+import { addMediaToWatchlist } from "@/app/actions/watchlist-actions"
 import type { TMDBSearchResult } from "@/lib/tmdb"
 
 interface MovieSearchProps {
-  onAddToWatchlist?: (movie: TMDBSearchResult) => void
+  watchlistId: string
 }
 
-export function MovieSearch({ onAddToWatchlist }: MovieSearchProps) {
+export function MovieSearch({ watchlistId }: MovieSearchProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<TMDBSearchResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
+  const [addingItems, setAddingItems] = useState<Set<string>>(new Set())
+  const [addedItems, setAddedItems] = useState<Set<string>>(new Set())
+  const [error, setError] = useState("")
   const debouncedQuery = useDebounce(searchQuery, 300)
 
   useEffect(() => {
@@ -46,11 +51,32 @@ export function MovieSearch({ onAddToWatchlist }: MovieSearchProps) {
     searchMedia()
   }, [debouncedQuery])
 
-  const handleAddToWatchlist = (movie: TMDBSearchResult) => {
-    onAddToWatchlist?.(movie)
-    setIsOpen(false)
-    setSearchQuery("")
-    setSearchResults([])
+  const handleAddToWatchlist = async (movie: TMDBSearchResult) => {
+    const itemKey = `${movie.media_type}-${movie.id}`
+    setAddingItems((prev) => new Set([...prev, itemKey]))
+    setError("")
+
+    try {
+      const result = await addMediaToWatchlist(watchlistId, movie.id, movie.media_type)
+
+      if (result.success) {
+        setAddedItems((prev) => new Set([...prev, itemKey]))
+        // Remove from search results after a delay
+        setTimeout(() => {
+          setSearchResults((prev) => prev.filter((item) => `${item.media_type}-${item.id}` !== itemKey))
+        }, 1000)
+      } else {
+        setError(result.error || "Failed to add item")
+      }
+    } catch (error: any) {
+      setError(error.message || "Failed to add item")
+    } finally {
+      setAddingItems((prev) => {
+        const newSet = new Set(prev)
+        newSet.delete(itemKey)
+        return newSet
+      })
+    }
   }
 
   const getTitle = (item: TMDBSearchResult) => item.title || item.name || "Unknown Title"
@@ -59,8 +85,21 @@ export function MovieSearch({ onAddToWatchlist }: MovieSearchProps) {
     return date ? new Date(date).getFullYear() : null
   }
 
+  const resetDialog = () => {
+    setSearchQuery("")
+    setSearchResults([])
+    setAddedItems(new Set())
+    setError("")
+  }
+
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        setIsOpen(open)
+        if (!open) resetDialog()
+      }}
+    >
       <DialogTrigger asChild>
         <Button className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black font-medium">
           <Plus className="w-4 h-4 mr-2" />
@@ -73,6 +112,12 @@ export function MovieSearch({ onAddToWatchlist }: MovieSearchProps) {
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden flex flex-col">
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
           {/* Search Input */}
           <div className="flex gap-2 mb-6">
             <div className="relative flex-1">
@@ -93,54 +138,78 @@ export function MovieSearch({ onAddToWatchlist }: MovieSearchProps) {
           <div className="flex-1 overflow-y-auto">
             {searchResults.length > 0 ? (
               <div className="space-y-4">
-                {searchResults.map((item) => (
-                  <Card key={`${item.media_type}-${item.id}`} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex gap-4">
-                        {/* Poster */}
-                        <div className="flex-shrink-0">
-                          <Image
-                            src={
-                              item.poster_path
-                                ? `https://image.tmdb.org/t/p/w200${item.poster_path}`
-                                : "/placeholder.svg"
-                            }
-                            alt={getTitle(item)}
-                            width={60}
-                            height={90}
-                            className="rounded-lg object-cover"
-                          />
-                        </div>
+                {searchResults.map((item) => {
+                  const itemKey = `${item.media_type}-${item.id}`
+                  const isAdding = addingItems.has(itemKey)
+                  const isAdded = addedItems.has(itemKey)
 
-                        {/* Content */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between mb-2">
-                            <div>
-                              <h3 className="font-semibold text-gray-900 mb-1">
-                                {getTitle(item)} {getYear(item) && `(${getYear(item)})`}
-                              </h3>
-                              <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
-                                <Badge variant="outline" className="text-xs">
-                                  {item.media_type === "movie" ? "Movie" : "TV Show"}
-                                </Badge>
-                              </div>
-                            </div>
-                            <Button
-                              size="sm"
-                              onClick={() => handleAddToWatchlist(item)}
-                              className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black font-medium"
-                            >
-                              <Plus className="w-4 h-4 mr-1" />
-                              Add
-                            </Button>
+                  return (
+                    <Card key={itemKey} className="hover:shadow-md transition-shadow">
+                      <CardContent className="p-4">
+                        <div className="flex gap-4">
+                          {/* Poster */}
+                          <div className="flex-shrink-0">
+                            <Image
+                              src={
+                                item.poster_path
+                                  ? `https://image.tmdb.org/t/p/w200${item.poster_path}`
+                                  : "/placeholder.svg"
+                              }
+                              alt={getTitle(item)}
+                              width={60}
+                              height={90}
+                              className="rounded-lg object-cover"
+                            />
                           </div>
 
-                          {item.overview && <p className="text-sm text-gray-600 mb-3 line-clamp-2">{item.overview}</p>}
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between mb-2">
+                              <div>
+                                <h3 className="font-semibold text-gray-900 mb-1">
+                                  {getTitle(item)} {getYear(item) && `(${getYear(item)})`}
+                                </h3>
+                                <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
+                                  <Badge variant="outline" className="text-xs">
+                                    {item.media_type === "movie" ? "Movie" : "TV Show"}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                onClick={() => handleAddToWatchlist(item)}
+                                disabled={isAdding || isAdded}
+                                className={
+                                  isAdded
+                                    ? "bg-green-500 hover:bg-green-600 text-white"
+                                    : "bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black font-medium"
+                                }
+                              >
+                                {isAdding ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : isAdded ? (
+                                  <>
+                                    <CheckCircle className="w-4 h-4 mr-1" />
+                                    Added
+                                  </>
+                                ) : (
+                                  <>
+                                    <Plus className="w-4 h-4 mr-1" />
+                                    Add
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+
+                            {item.overview && (
+                              <p className="text-sm text-gray-600 mb-3 line-clamp-2">{item.overview}</p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  )
+                })}
               </div>
             ) : (
               <div className="text-center py-12">

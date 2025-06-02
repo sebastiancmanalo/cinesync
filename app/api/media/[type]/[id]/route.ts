@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getMovieDetails, getTVDetails } from "@/lib/tmdb"
+import { getMovieDetailsServer, getTVDetailsServer } from "@/lib/tmdb-server"
 
 export async function GET(request: NextRequest, { params }: { params: { type: string; id: string } }) {
   const { type, id } = params
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest, { params }: { params: { type: st
       return NextResponse.json({ error: "Invalid media ID" }, { status: 400 })
     }
 
-    const details = type === "movie" ? await getMovieDetails(mediaId) : await getTVDetails(mediaId)
+    const details = type === "movie" ? await getMovieDetailsServer(mediaId) : await getTVDetailsServer(mediaId)
 
     if (!details) {
       return NextResponse.json({ error: "Media not found" }, { status: 404 })

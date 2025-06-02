@@ -28,6 +28,8 @@ import Image from "next/image"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/hooks/use-auth"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { MovieSearch } from "@/components/movie-search"
+import { updateWatchlistItemStatus } from "@/app/actions/watchlist-actions"
 
 // Mock data for a specific watchlist
 const watchlistData = {
@@ -134,10 +136,7 @@ export default function WatchlistPage() {
               </div>
 
               <div className="flex items-center gap-4">
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Movie/Show
-                </Button>
+                <MovieSearch watchlistId={watchlistData.id} />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Avatar className="cursor-pointer">
@@ -332,7 +331,13 @@ export default function WatchlistPage() {
 
                         <div className="flex items-center gap-2">
                           {item.status === "to-watch" && (
-                            <Button size="sm">
+                            <Button
+                              size="sm"
+                              onClick={async () => {
+                                await updateWatchlistItemStatus(item.id, "watching")
+                                // Refresh the page or update state
+                              }}
+                            >
                               <Play className="w-4 h-4 mr-1" />
                               Start Watching
                             </Button>

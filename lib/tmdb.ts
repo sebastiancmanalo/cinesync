@@ -1,6 +1,4 @@
-const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY || "demo_key"
-const TMDB_BASE_URL = "https://api.themoviedb.org/3"
-
+// Remove client-side API key exposure - all calls now go through our API routes
 export interface TMDBSearchResult {
   id: number
   title?: string
@@ -35,54 +33,6 @@ export interface TMDBTVDetails {
   number_of_seasons: number
   episode_run_time: number[]
   genres: { id: number; name: string }[]
-}
-
-export async function searchMoviesAndTV(query: string): Promise<TMDBSearchResult[]> {
-  try {
-    const response = await fetch(
-      `${TMDB_BASE_URL}/search/multi?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}`,
-    )
-
-    if (!response.ok) {
-      throw new Error("Failed to search")
-    }
-
-    const data = await response.json()
-    return data.results.filter((item: any) => item.media_type === "movie" || item.media_type === "tv")
-  } catch (error) {
-    console.error("Error searching TMDB:", error)
-    return []
-  }
-}
-
-export async function getMovieDetails(id: number): Promise<TMDBMovieDetails | null> {
-  try {
-    const response = await fetch(`${TMDB_BASE_URL}/movie/${id}?api_key=${TMDB_API_KEY}`)
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch movie details")
-    }
-
-    return await response.json()
-  } catch (error) {
-    console.error("Error fetching movie details:", error)
-    return null
-  }
-}
-
-export async function getTVDetails(id: number): Promise<TMDBTVDetails | null> {
-  try {
-    const response = await fetch(`${TMDB_BASE_URL}/tv/${id}?api_key=${TMDB_API_KEY}`)
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch TV details")
-    }
-
-    return await response.json()
-  } catch (error) {
-    console.error("Error fetching TV details:", error)
-    return null
-  }
 }
 
 export function getImageUrl(path: string, size: "w200" | "w500" | "original" = "w500"): string {

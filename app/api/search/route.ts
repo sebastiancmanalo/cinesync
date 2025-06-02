@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { searchMoviesAndTV } from "@/lib/tmdb"
+import { searchMoviesAndTVServer } from "@/lib/tmdb-server"
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const results = await searchMoviesAndTV(query)
+    const results = await searchMoviesAndTVServer(query)
     return NextResponse.json(results)
   } catch (error) {
     console.error("Search error:", error)
