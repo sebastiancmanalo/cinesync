@@ -1,10 +1,11 @@
 // Server-side TMDB utilities with secure API key access
-// Use TMDB_API_KEY (without NEXT_PUBLIC_ prefix) for server-only access
+// This file should NEVER be imported on the client side
+
 const TMDB_API_KEY = process.env.TMDB_API_KEY
 const TMDB_BASE_URL = "https://api.themoviedb.org/3"
 
 if (!TMDB_API_KEY) {
-  console.warn("TMDB_API_KEY environment variable is not set")
+  console.warn("TMDB_API_KEY environment variable is not set - using mock data")
 }
 
 export async function searchMoviesAndTVServer(query: string) {

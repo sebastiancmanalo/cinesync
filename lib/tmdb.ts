@@ -1,4 +1,6 @@
-// Remove client-side API key exposure - all calls now go through our API routes
+// Client-side TMDB utilities - NO API KEY USAGE
+// All API calls go through our server-side routes
+
 export interface TMDBSearchResult {
   id: number
   title?: string
@@ -35,7 +37,9 @@ export interface TMDBTVDetails {
   genres: { id: number; name: string }[]
 }
 
+// Utility functions that don't require API access
 export function getImageUrl(path: string, size: "w200" | "w500" | "original" = "w500"): string {
+  if (!path) return "/placeholder.svg"
   return `https://image.tmdb.org/t/p/${size}${path}`
 }
 
@@ -58,4 +62,30 @@ export function calculateWatchTime(
   }
 
   return 0
+}
+
+export function formatRuntime(minutes: number): string {
+  if (minutes < 60) {
+    return `${minutes}m`
+  }
+
+  const hours = Math.floor(minutes / 60)
+  const remainingMinutes = minutes % 60
+
+  if (remainingMinutes === 0) {
+    return `${hours}h`
+  }
+
+  return `${hours}h ${remainingMinutes}m`
+}
+
+export function getMediaTitle(item: TMDBSearchResult | TMDBMovieDetails | TMDBTVDetails): string {
+  if ("title" in item) return item.title
+  if ("name" in item) return item.name
+  return "Unknown Title"
+}
+
+export function getMediaYear(item: TMDBSearchResult | TMDBMovieDetails | TMDBTVDetails): number | null {
+  const date = ("release_date" in item ? item.release_date : item.first_air_date) || ""
+  return date ? new Date(date).getFullYear() : null
 }

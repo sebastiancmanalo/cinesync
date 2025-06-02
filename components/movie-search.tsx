@@ -11,6 +11,7 @@ import { Search, Plus, Loader2, CheckCircle } from "lucide-react"
 import Image from "next/image"
 import { useDebounce } from "@/hooks/use-debounce"
 import { addMediaToWatchlist } from "@/app/actions/watchlist-actions"
+import { getImageUrl, getMediaTitle, getMediaYear } from "@/lib/tmdb"
 import type { TMDBSearchResult } from "@/lib/tmdb"
 
 interface MovieSearchProps {
@@ -79,12 +80,6 @@ export function MovieSearch({ watchlistId }: MovieSearchProps) {
     }
   }
 
-  const getTitle = (item: TMDBSearchResult) => item.title || item.name || "Unknown Title"
-  const getYear = (item: TMDBSearchResult) => {
-    const date = item.release_date || item.first_air_date
-    return date ? new Date(date).getFullYear() : null
-  }
-
   const resetDialog = () => {
     setSearchQuery("")
     setSearchResults([])
@@ -142,6 +137,8 @@ export function MovieSearch({ watchlistId }: MovieSearchProps) {
                   const itemKey = `${item.media_type}-${item.id}`
                   const isAdding = addingItems.has(itemKey)
                   const isAdded = addedItems.has(itemKey)
+                  const title = getMediaTitle(item)
+                  const year = getMediaYear(item)
 
                   return (
                     <Card key={itemKey} className="hover:shadow-md transition-shadow">
@@ -150,12 +147,8 @@ export function MovieSearch({ watchlistId }: MovieSearchProps) {
                           {/* Poster */}
                           <div className="flex-shrink-0">
                             <Image
-                              src={
-                                item.poster_path
-                                  ? `https://image.tmdb.org/t/p/w200${item.poster_path}`
-                                  : "/placeholder.svg"
-                              }
-                              alt={getTitle(item)}
+                              src={getImageUrl(item.poster_path || "", "w200")}
+                              alt={title}
                               width={60}
                               height={90}
                               className="rounded-lg object-cover"
@@ -167,7 +160,7 @@ export function MovieSearch({ watchlistId }: MovieSearchProps) {
                             <div className="flex items-start justify-between mb-2">
                               <div>
                                 <h3 className="font-semibold text-gray-900 mb-1">
-                                  {getTitle(item)} {getYear(item) && `(${getYear(item)})`}
+                                  {title} {year && `(${year})`}
                                 </h3>
                                 <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
                                   <Badge variant="outline" className="text-xs">
