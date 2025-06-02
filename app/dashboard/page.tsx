@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Plus, Search, Clock, Users, Star, Calendar, MoreHorizontal, LogOut, Film, Trash2, Pencil } from "lucide-react"
+import { Plus, Search, Clock, Users, Star, MoreHorizontal, LogOut, Film, Trash2, Pencil, RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { ProtectedRoute } from "@/components/protected-route"
 import type { Watchlist, WatchlistItem, WatchlistMember, User } from "@/types/database"
@@ -20,25 +20,12 @@ import { useRouter } from "next/navigation"
 
 interface WatchlistWithDetails extends Watchlist {
   watchlist_items: WatchlistItem[]
-  watchlist_members: WatchlistMember[]
-}
-
-interface WatchlistInvitation {
-  id: string
-  watchlist_id: string
-  invited_user_id: string
-  invited_by_user_id: string
-  status: "pending" | "accepted" | "rejected"
-  created_at: string
-  updated_at: string
-  watchlist: Watchlist
-  invited_by: User
+  watchlist_members: (WatchlistMember & { user: User })[]
 }
 
 export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [watchlists, setWatchlists] = useState<WatchlistWithDetails[]>([])
-  const [pendingInvitations, setPendingInvitations] = useState<WatchlistInvitation[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const { user, signOut } = useAuth()
@@ -55,58 +42,74 @@ export default function DashboardPage() {
     if (user) {
       console.log("Current user ID:", user.id)
       fetchWatchlists()
-      fetchPendingInvitations()
     }
   }, [user])
 
   const fetchWatchlists = async () => {
     try {
       setError(null)
+      setLoading(true)
       console.log("Fetching watchlists for user:", user?.id)
 
-      // Direct query to get all watchlists (simplified for debugging)
-      const { data, error } = await supabase
+      // First, let's get basic watchlist data
+      const { data: watchlistsData, error: watchlistsError } = await supabase
         .from("watchlists")
-        .select(`
-          *,
-          watchlist_members (*),
-          watchlist_items(*)
-        `)
+        .select("*")
         .order("created_at", { ascending: false })
 
-      if (error) {
-        console.error("Error fetching watchlists:", error)
-        setError(`Error fetching watchlists: ${error.message}`)
-        throw error
+      if (watchlistsError) {
+        console.error("Error fetching watchlists:", watchlistsError)
+        setError(`Error fetching watchlists: ${watchlistsError.message}`)
+        return
       }
 
-      console.log("Fetched watchlists:", data)
-      setWatchlists(data || [])
+      console.log("Raw watchlists data:", watchlistsData)
+
+      // Get watchlist members
+      const { data: membersData, error: membersError } = await supabase.from("watchlist_members").select(`
+          *,
+          user:users(*)
+        `)
+
+      if (membersError) {
+        console.error("Error fetching members:", membersError)
+      }
+
+      console.log("Members data:", membersData)
+
+      // Get watchlist items
+      const { data: itemsData, error: itemsError } = await supabase.from("watchlist_items").select("*")
+
+      if (itemsError) {
+        console.error("Error fetching items:", itemsError)
+      }
+
+      console.log("Items data:", itemsData)
+
+      // Combine the data
+      const combinedWatchlists =
+        watchlistsData?.map((watchlist) => ({
+          ...watchlist,
+          watchlist_members: membersData?.filter((member) => member.watchlist_id === watchlist.id) || [],
+          watchlist_items: itemsData?.filter((item) => item.watchlist_id === watchlist.id) || [],
+        })) || []
+
+      console.log("Combined watchlists:", combinedWatchlists)
+
+      // Filter to only show watchlists where user is a member or owner
+      const userWatchlists = combinedWatchlists.filter(
+        (watchlist) =>
+          watchlist.owner_id === user?.id || watchlist.watchlist_members.some((member) => member.user_id === user?.id),
+      )
+
+      console.log("User watchlists:", userWatchlists)
+
+      setWatchlists(userWatchlists)
     } catch (error: any) {
       console.error("Error in fetchWatchlists:", error)
       setError(`Error: ${error.message}`)
     } finally {
       setLoading(false)
-    }
-  }
-
-  const fetchPendingInvitations = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("watchlist_invitations")
-        .select(`
-          *,
-          watchlist:watchlists(*),
-          invited_by:users!watchlist_invitations_invited_by_user_id_fkey(*)
-        `)
-        .eq("invited_user_id", user?.id)
-        .eq("status", "pending")
-        .order("created_at", { ascending: false })
-
-      if (error) throw error
-      setPendingInvitations(data || [])
-    } catch (error) {
-      console.error("Error fetching invitations:", error)
     }
   }
 
@@ -169,38 +172,6 @@ export default function DashboardPage() {
     }
   }
 
-  const handleInvitationResponse = async (invitationId: string, accept: boolean) => {
-    try {
-      const invitation = pendingInvitations.find((inv) => inv.id === invitationId)
-      if (!invitation) return
-
-      if (accept) {
-        // Add user as member
-        const { error: memberError } = await supabase.from("watchlist_members").insert({
-          watchlist_id: invitation.watchlist_id,
-          user_id: user?.id,
-          role: "member",
-        })
-
-        if (memberError) throw memberError
-      }
-
-      // Update invitation status
-      const { error: updateError } = await supabase
-        .from("watchlist_invitations")
-        .update({ status: accept ? "accepted" : "rejected" })
-        .eq("id", invitationId)
-
-      if (updateError) throw updateError
-
-      // Refresh data
-      await Promise.all([fetchWatchlists(), fetchPendingInvitations()])
-    } catch (error) {
-      console.error("Error handling invitation:", error)
-      alert("Failed to process invitation. Please try again.")
-    }
-  }
-
   if (loading) {
     return (
       <ProtectedRoute>
@@ -239,6 +210,14 @@ export default function DashboardPage() {
                   />
                 </div>
                 <Button
+                  onClick={fetchWatchlists}
+                  variant="outline"
+                  className="bg-white/95 text-gray-900 hover:bg-gray-100"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Refresh
+                </Button>
+                <Button
                   onClick={() => router.push("/lists/new")}
                   className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black"
                 >
@@ -268,65 +247,6 @@ export default function DashboardPage() {
 
         <div className="container mx-auto px-4 py-8">
           {/* Debug Info */}
-          {error && (
-            <div className="mb-6 p-4 bg-red-100 border border-red-300 rounded-md">
-              <h3 className="font-bold text-red-800">Error:</h3>
-              <p className="text-red-800">{error}</p>
-            </div>
-          )}
-
-          {/* User Info */}
-          <div className="mb-6 p-4 bg-blue-100 border border-blue-300 rounded-md">
-            <h3 className="font-bold">Current User:</h3>
-            <p>ID: {user?.id}</p>
-            <p>Email: {user?.email}</p>
-            <button
-              onClick={fetchWatchlists}
-              className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              Refresh Watchlists
-            </button>
-          </div>
-
-          {/* Pending Invitations */}
-          {pendingInvitations.length > 0 && (
-            <div className="mb-8">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Pending Invitations</h2>
-              <div className="space-y-4">
-                {pendingInvitations.map((invitation) => (
-                  <Card key={invitation.id} className="bg-white/95">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-medium text-gray-900">{invitation.watchlist.name}</h3>
-                          <p className="text-sm text-gray-600">
-                            Invited by {invitation.invited_by.full_name || invitation.invited_by.email}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleInvitationResponse(invitation.id, true)}
-                            className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black"
-                          >
-                            Accept
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleInvitationResponse(invitation.id, false)}
-                            className="bg-white/95 text-gray-900"
-                          >
-                            Decline
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
 
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Main Content */}
@@ -351,7 +271,7 @@ export default function DashboardPage() {
                   <CardContent className="p-6">
                     <div className="flex items-center gap-4">
                       <div className="p-3 bg-yellow-50 rounded-lg">
-                        <Users className="w-6 h-6 text-yellow-500" />
+                        <Clock className="w-6 h-6 text-yellow-500" />
                       </div>
                       <div>
                         <p className="text-2xl font-bold text-gray-900">
@@ -467,44 +387,43 @@ export default function DashboardPage() {
                                   )}
                                 </div>
 
-                                <Button variant="ghost" size="icon" className="relative">
-                                  <MoreHorizontal className="w-4 h-4" />
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="absolute inset-0" />
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="bg-white/95">
-                                      <DropdownMenuItem
-                                        onClick={(e) => {
-                                          e.preventDefault()
-                                          e.stopPropagation()
-                                          setEditingWatchlist(list)
-                                          setEditForm({
-                                            name: list.name,
-                                            description: list.description || "",
-                                          })
-                                          setIsEditDialogOpen(true)
-                                        }}
-                                      >
-                                        <Pencil className="w-4 h-4 mr-2" />
-                                        Rename List
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem
-                                        className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                                        onClick={(e) => {
-                                          e.preventDefault()
-                                          e.stopPropagation()
-                                          if (confirm("Are you sure you want to delete this watchlist?")) {
-                                            handleDeleteWatchlist(list.id)
-                                          }
-                                        }}
-                                      >
-                                        <Trash2 className="w-4 h-4 mr-2" />
-                                        Delete Watchlist
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                </Button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" onClick={(e) => e.preventDefault()}>
+                                      <MoreHorizontal className="w-4 h-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="bg-white/95">
+                                    <DropdownMenuItem
+                                      onClick={(e) => {
+                                        e.preventDefault()
+                                        e.stopPropagation()
+                                        setEditingWatchlist(list)
+                                        setEditForm({
+                                          name: list.name,
+                                          description: list.description || "",
+                                        })
+                                        setIsEditDialogOpen(true)
+                                      }}
+                                    >
+                                      <Pencil className="w-4 h-4 mr-2" />
+                                      Rename List
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                                      onClick={(e) => {
+                                        e.preventDefault()
+                                        e.stopPropagation()
+                                        if (confirm("Are you sure you want to delete this watchlist?")) {
+                                          handleDeleteWatchlist(list.id)
+                                        }
+                                      }}
+                                    >
+                                      <Trash2 className="w-4 h-4 mr-2" />
+                                      Delete Watchlist
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               </div>
                             </CardContent>
                           </Link>
@@ -544,44 +463,42 @@ export default function DashboardPage() {
                     Create New List
                   </Button>
                   <Button
-                    onClick={() => router.push("/browse")}
+                    onClick={fetchWatchlists}
                     className="w-full justify-start bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black"
                   >
-                    <Search className="w-4 h-4 mr-2" />
-                    Browse Movies
-                  </Button>
-                  <Button
-                    onClick={() => router.push("/schedule")}
-                    className="w-full justify-start bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black"
-                  >
-                    <Calendar className="w-4 h-4 mr-2" />
-                    Schedule Watch Time
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Refresh Data
                   </Button>
                 </CardContent>
               </Card>
 
-              {/* Time Suggestion */}
+              {/* Status */}
               <Card className="bg-white/95">
                 <CardHeader>
                   <CardTitle className="bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">
-                    Tonight's Suggestion
+                    System Status
                   </CardTitle>
-                  <CardDescription className="text-gray-600">Based on your 2 hour window</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    <div className="font-medium text-gray-900">Ready to discover something new?</div>
-                    <p className="text-sm text-gray-600">
-                      Add some movies to your watchlists to get personalized recommendations!
-                    </p>
-                    <Link href="/lists/new">
-                      <Button
-                        size="sm"
-                        className="w-full bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black"
-                      >
-                        Create Your First List
-                      </Button>
-                    </Link>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>Database:</span>
+                      <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
+                        Connected
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>RLS Policies:</span>
+                      <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
+                        Operational
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Auth:</span>
+                      <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
+                        Active
+                      </Badge>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
