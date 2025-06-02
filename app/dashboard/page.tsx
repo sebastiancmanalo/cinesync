@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Plus, Search, Clock, Users, Star, Calendar, MoreHorizontal, Filter, LogOut, Film, Trash2, Pencil } from "lucide-react"
+import { Plus, Search, Clock, Users, Star, Calendar, MoreHorizontal, LogOut, Film, Trash2, Pencil } from "lucide-react"
 import Link from "next/link"
 import { ProtectedRoute } from "@/components/protected-route"
 import type { Watchlist, WatchlistItem, WatchlistMember, User } from "@/types/database"
@@ -40,6 +40,7 @@ export default function DashboardPage() {
   const [watchlists, setWatchlists] = useState<WatchlistWithDetails[]>([])
   const [pendingInvitations, setPendingInvitations] = useState<WatchlistInvitation[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const { user, signOut } = useAuth()
   const supabase = createClient()
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
@@ -52,69 +53,38 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (user) {
-      console.log('Current user ID:', user.id)
+      console.log("Current user ID:", user.id)
       fetchWatchlists()
       fetchPendingInvitations()
-      // Debug: fetch all invitations with joined user info
-      fetchAllInvitationsDebug()
     }
   }, [user])
 
   const fetchWatchlists = async () => {
     try {
-      // Step 1: Get all watchlist IDs where the user is a member
-      const { data: memberRows, error: memberError } = await supabase
-        .from("watchlist_members")
-        .select("watchlist_id")
-        .eq("user_id", user?.id)
+      setError(null)
+      console.log("Fetching watchlists for user:", user?.id)
 
-      if (memberError) throw memberError
-      const watchlistIds = memberRows?.map((row) => row.watchlist_id) || []
-
-      // Step 2: Fetch all watchlists where the user is the owner
-      const { data: ownedWatchlists, error: ownerError } = await supabase
+      // Direct query to get all watchlists (simplified for debugging)
+      const { data, error } = await supabase
         .from("watchlists")
         .select(`
           *,
-          watchlist_members (
-            *,
-            user:users (*)
-          ),
+          watchlist_members (*),
           watchlist_items(*)
         `)
-        .eq("owner_id", user?.id)
         .order("created_at", { ascending: false })
 
-      if (ownerError) throw ownerError
-
-      // Step 3: Fetch all watchlists where the user is a member (if any)
-      let memberWatchlists: any[] = []
-      if (watchlistIds.length > 0) {
-        const { data, error } = await supabase
-          .from("watchlists")
-          .select(`
-            *,
-            watchlist_members (
-              *,
-              user:users (*)
-            ),
-            watchlist_items(*)
-          `)
-          .in("id", watchlistIds)
-          .order("created_at", { ascending: false })
-        if (error) throw error
-        memberWatchlists = data || []
+      if (error) {
+        console.error("Error fetching watchlists:", error)
+        setError(`Error fetching watchlists: ${error.message}`)
+        throw error
       }
 
-      // Step 4: Merge and deduplicate by watchlist id
-      const allWatchlists = [...(ownedWatchlists || []), ...memberWatchlists]
-      const deduped = allWatchlists.filter((wl, idx, arr) =>
-        arr.findIndex(w => w.id === wl.id) === idx
-      )
-      console.log("Fetched watchlists:", deduped)
-      setWatchlists(deduped)
-    } catch (error) {
-      console.error("Error fetching watchlists:", error)
+      console.log("Fetched watchlists:", data)
+      setWatchlists(data || [])
+    } catch (error: any) {
+      console.error("Error in fetchWatchlists:", error)
+      setError(`Error: ${error.message}`)
     } finally {
       setLoading(false)
     }
@@ -140,24 +110,6 @@ export default function DashboardPage() {
     }
   }
 
-  // Debug: fetch all invitations with joined user info
-  const fetchAllInvitationsDebug = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("watchlist_invitations")
-        .select(`
-          *,
-          invited_by:users!invited_by_user_id(*),
-          invited_user:users!invited_user_id(*)
-        `)
-        .order("created_at", { ascending: false })
-      if (error) throw error
-      console.log("Fetched invitations (debug):", data)
-    } catch (error) {
-      console.error("Error fetching invitations (debug):", error)
-    }
-  }
-
   const calculateTotalTime = (items: WatchlistItem[]) => {
     return items?.reduce((total, item) => total + (item.estimated_watch_time || 0), 0) || 0
   }
@@ -179,15 +131,12 @@ export default function DashboardPage() {
 
   const handleDeleteWatchlist = async (watchlistId: string) => {
     try {
-      const { error } = await supabase
-        .from("watchlists")
-        .delete()
-        .eq("id", watchlistId)
+      const { error } = await supabase.from("watchlists").delete().eq("id", watchlistId)
 
       if (error) throw error
 
       // Update local state after successful deletion
-      setWatchlists(watchlists.filter(list => list.id !== watchlistId))
+      setWatchlists(watchlists.filter((list) => list.id !== watchlistId))
     } catch (error) {
       console.error("Error deleting watchlist:", error)
     }
@@ -208,11 +157,11 @@ export default function DashboardPage() {
       if (error) throw error
 
       // Update local state
-      setWatchlists(watchlists.map(list => 
-        list.id === editingWatchlist.id 
-          ? { ...list, name: editForm.name, description: editForm.description }
-          : list
-      ))
+      setWatchlists(
+        watchlists.map((list) =>
+          list.id === editingWatchlist.id ? { ...list, name: editForm.name, description: editForm.description } : list,
+        ),
+      )
       setIsEditDialogOpen(false)
       setEditingWatchlist(null)
     } catch (error) {
@@ -222,18 +171,16 @@ export default function DashboardPage() {
 
   const handleInvitationResponse = async (invitationId: string, accept: boolean) => {
     try {
-      const invitation = pendingInvitations.find(inv => inv.id === invitationId)
+      const invitation = pendingInvitations.find((inv) => inv.id === invitationId)
       if (!invitation) return
 
       if (accept) {
         // Add user as member
-        const { error: memberError } = await supabase
-          .from("watchlist_members")
-          .insert({
-            watchlist_id: invitation.watchlist_id,
-            user_id: user?.id,
-            role: "member",
-          })
+        const { error: memberError } = await supabase.from("watchlist_members").insert({
+          watchlist_id: invitation.watchlist_id,
+          user_id: user?.id,
+          role: "member",
+        })
 
         if (memberError) throw memberError
       }
@@ -320,6 +267,27 @@ export default function DashboardPage() {
         </header>
 
         <div className="container mx-auto px-4 py-8">
+          {/* Debug Info */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-100 border border-red-300 rounded-md">
+              <h3 className="font-bold text-red-800">Error:</h3>
+              <p className="text-red-800">{error}</p>
+            </div>
+          )}
+
+          {/* User Info */}
+          <div className="mb-6 p-4 bg-blue-100 border border-blue-300 rounded-md">
+            <h3 className="font-bold">Current User:</h3>
+            <p>ID: {user?.id}</p>
+            <p>Email: {user?.email}</p>
+            <button
+              onClick={fetchWatchlists}
+              className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              Refresh Watchlists
+            </button>
+          </div>
+
           {/* Pending Invitations */}
           {pendingInvitations.length > 0 && (
             <div className="mb-8">
@@ -420,7 +388,9 @@ export default function DashboardPage() {
               {/* Watchlists */}
               <div>
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">Your Watchlists</h2>
+                  <h2 className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">
+                    Your Watchlists
+                  </h2>
                 </div>
 
                 {filteredWatchlists.length === 0 ? (
@@ -458,8 +428,17 @@ export default function DashboardPage() {
                                 <div className="flex-1">
                                   <div className="flex items-center gap-3 mb-2">
                                     <h3 className="text-lg font-semibold text-gray-900">{list.name}</h3>
-                                    <Badge variant="secondary" className="text-yellow-700 bg-yellow-50 border border-yellow-200">{totalItems} items</Badge>
-                                    {list.is_public && <Badge variant="outline" className="text-pink-600 border-pink-200 bg-pink-50">Public</Badge>}
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-yellow-700 bg-yellow-50 border border-yellow-200"
+                                    >
+                                      {totalItems} items
+                                    </Badge>
+                                    {list.is_public && (
+                                      <Badge variant="outline" className="text-pink-600 border-pink-200 bg-pink-50">
+                                        Public
+                                      </Badge>
+                                    )}
                                   </div>
 
                                   {list.description && <p className="text-sm text-gray-600 mb-3">{list.description}</p>}
@@ -552,7 +531,9 @@ export default function DashboardPage() {
               {/* Quick Actions */}
               <Card className="bg-white/95">
                 <CardHeader>
-                  <CardTitle className="bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">Quick Actions</CardTitle>
+                  <CardTitle className="bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">
+                    Quick Actions
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <Button
@@ -582,7 +563,9 @@ export default function DashboardPage() {
               {/* Time Suggestion */}
               <Card className="bg-white/95">
                 <CardHeader>
-                  <CardTitle className="bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">Tonight's Suggestion</CardTitle>
+                  <CardTitle className="bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">
+                    Tonight's Suggestion
+                  </CardTitle>
                   <CardDescription className="text-gray-600">Based on your 2 hour window</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -592,7 +575,10 @@ export default function DashboardPage() {
                       Add some movies to your watchlists to get personalized recommendations!
                     </p>
                     <Link href="/lists/new">
-                      <Button size="sm" className="w-full bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black">
+                      <Button
+                        size="sm"
+                        className="w-full bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black"
+                      >
                         Create Your First List
                       </Button>
                     </Link>
@@ -607,7 +593,9 @@ export default function DashboardPage() {
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent className="bg-white/95">
             <DialogHeader>
-              <DialogTitle className="bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">Edit Watchlist</DialogTitle>
+              <DialogTitle className="bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">
+                Edit Watchlist
+              </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
@@ -635,7 +623,10 @@ export default function DashboardPage() {
               <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="bg-white/95">
                 Cancel
               </Button>
-              <Button onClick={handleEditWatchlist} className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black">
+              <Button
+                onClick={handleEditWatchlist}
+                className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black"
+              >
                 Save Changes
               </Button>
             </DialogFooter>

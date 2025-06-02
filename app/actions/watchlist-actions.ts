@@ -20,8 +20,11 @@ export async function createWatchlist(formData: {
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
+      console.error("Authentication error:", authError)
       throw new Error("Authentication required")
     }
+
+    console.log("Creating watchlist for user:", user.id)
 
     // Create the watchlist
     const { data: watchlist, error: watchlistError } = await supabase
@@ -40,6 +43,8 @@ export async function createWatchlist(formData: {
       throw new Error(`Failed to create watchlist: ${watchlistError.message}`)
     }
 
+    console.log("Watchlist created:", watchlist.id)
+
     // Add the creator as a member with owner role
     const { error: memberError } = await supabase.from("watchlist_members").insert({
       watchlist_id: watchlist.id,
@@ -53,6 +58,8 @@ export async function createWatchlist(formData: {
       await supabase.from("watchlists").delete().eq("id", watchlist.id)
       throw new Error(`Failed to set up watchlist membership: ${memberError.message}`)
     }
+
+    console.log("Member added successfully")
 
     // Revalidate relevant pages
     revalidatePath("/dashboard")
@@ -285,9 +292,9 @@ export async function sendWatchlistInvitation({
   invitedByUserId,
   invitedUserEmail,
 }: {
-  watchlistId: string;
-  invitedByUserId: string;
-  invitedUserEmail: string;
+  watchlistId: string
+  invitedByUserId: string
+  invitedUserEmail: string
 }) {
   const supabase = await createClient()
 
@@ -299,10 +306,10 @@ export async function sendWatchlistInvitation({
       .eq("watchlist_id", watchlistId)
       .eq("invited_user_email", invitedUserEmail)
       .eq("status", "pending")
-      .maybeSingle();
+      .maybeSingle()
 
     if (existing) {
-      return { success: false, error: "Invitation already sent." };
+      return { success: false, error: "Invitation already sent." }
     }
 
     // Create new invitation
@@ -313,13 +320,13 @@ export async function sendWatchlistInvitation({
         invited_user_email: invitedUserEmail,
         status: "pending",
       },
-    ]);
+    ])
 
     if (error) {
-      return { success: false, error: error.message };
+      return { success: false, error: error.message }
     }
 
-    return { success: true };
+    return { success: true }
   } catch (error: any) {
     console.error("Error sending watchlist invitation:", error)
     return { success: false, error: error.message || "Failed to send watchlist invitation" }
@@ -336,13 +343,13 @@ export async function fetchPendingInvitations(userId: string, userEmail: string)
       .select("*, watchlist:watchlists(*), invited_by:users!invited_by_user_id(*)")
       .or(`invited_user_id.eq.${userId},invited_user_email.eq.${userEmail}`)
       .eq("status", "pending")
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
 
     if (error) {
-      return { success: false, error: error.message, invitations: [] };
+      return { success: false, error: error.message, invitations: [] }
     }
 
-    return { success: true, invitations: data };
+    return { success: true, invitations: data }
   } catch (error: any) {
     console.error("Error fetching pending invitations:", error)
     return { success: false, error: error.message || "Failed to fetch pending invitations", invitations: [] }
