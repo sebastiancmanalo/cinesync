@@ -59,6 +59,21 @@ export default function DashboardPage() {
 
   const fetchWatchlists = async () => {
     try {
+      // Step 1: Get all watchlist IDs where the user is a member
+      const { data: memberRows, error: memberError } = await supabase
+        .from("watchlist_members")
+        .select("watchlist_id")
+        .eq("user_id", user?.id)
+
+      if (memberError) throw memberError
+      const watchlistIds = memberRows?.map((row) => row.watchlist_id) || []
+      if (watchlistIds.length === 0) {
+        setWatchlists([])
+        setLoading(false)
+        return
+      }
+
+      // Step 2: Fetch all those watchlists, including all members
       const { data, error } = await supabase
         .from("watchlists")
         .select(`
@@ -69,7 +84,7 @@ export default function DashboardPage() {
           ),
           watchlist_items(*)
         `)
-        .eq("watchlist_members.user_id", user?.id)
+        .in("id", watchlistIds)
         .order("created_at", { ascending: false })
 
       if (error) throw error
