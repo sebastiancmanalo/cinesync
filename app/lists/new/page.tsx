@@ -4,7 +4,6 @@ import type React from "react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -15,6 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ArrowLeft, Film } from "lucide-react"
 import Link from "next/link"
 import { ProtectedRoute } from "@/components/protected-route"
+import { createWatchlist } from "@/app/actions/watchlist-actions"
 
 export default function NewListPage() {
   const { user } = useAuth()
@@ -26,7 +26,6 @@ export default function NewListPage() {
     description: "",
     isPublic: false,
   })
-  const supabase = createClient()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,30 +35,17 @@ export default function NewListPage() {
     setError("")
 
     try {
-      // Create the watchlist
-      const { data: watchlist, error: watchlistError } = await supabase
-        .from("watchlists")
-        .insert({
-          name: formData.name,
-          description: formData.description || null,
-          is_public: formData.isPublic,
-          owner_id: user.id,
-        })
-        .select("id")
-        .single()
-
-      if (watchlistError) throw watchlistError
-
-      // Add the creator as a member with owner role
-      const { error: memberError } = await supabase.from("watchlist_members").insert({
-        watchlist_id: watchlist.id,
-        user_id: user.id,
-        role: "owner",
+      const result = await createWatchlist({
+        name: formData.name,
+        description: formData.description,
+        isPublic: formData.isPublic,
       })
 
-      if (memberError) throw memberError
-
-      router.push(`/watchlist/${watchlist.id}`)
+      if (result.success) {
+        router.push(`/watchlist/${result.watchlistId}`)
+      } else {
+        setError(result.error || "Failed to create watchlist")
+      }
     } catch (err: any) {
       setError(err.message || "Failed to create watchlist")
     } finally {

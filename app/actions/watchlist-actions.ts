@@ -5,6 +5,66 @@ import { getMovieDetailsServer, getTVDetailsServer } from "@/lib/tmdb-server"
 import { calculateWatchTime } from "@/lib/tmdb"
 import { revalidatePath } from "next/cache"
 
+export async function createWatchlist(formData: {
+  name: string
+  description?: string
+  isPublic: boolean
+}) {
+  const supabase = await createClient()
+
+  try {
+    // Get current user
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      throw new Error("Authentication required")
+    }
+
+    // Create the watchlist
+    const { data: watchlist, error: watchlistError } = await supabase
+      .from("watchlists")
+      .insert({
+        name: formData.name,
+        description: formData.description || null,
+        is_public: formData.isPublic,
+        owner_id: user.id,
+      })
+      .select("id")
+      .single()
+
+    if (watchlistError) {
+      console.error("Watchlist creation error:", watchlistError)
+      throw new Error(`Failed to create watchlist: ${watchlistError.message}`)
+    }
+
+    // Add the creator as a member with owner role
+    const { error: memberError } = await supabase.from("watchlist_members").insert({
+      watchlist_id: watchlist.id,
+      user_id: user.id,
+      role: "owner",
+    })
+
+    if (memberError) {
+      console.error("Member creation error:", memberError)
+      // Try to clean up the watchlist if member creation fails
+      await supabase.from("watchlists").delete().eq("id", watchlist.id)
+      throw new Error(`Failed to set up watchlist membership: ${memberError.message}`)
+    }
+
+    // Revalidate relevant pages
+    revalidatePath("/dashboard")
+    revalidatePath(`/watchlist/${watchlist.id}`)
+
+    return { success: true, watchlistId: watchlist.id }
+  } catch (error: any) {
+    console.error("Error creating watchlist:", error)
+    return { success: false, error: error.message || "Failed to create watchlist" }
+  }
+}
+
 export async function addMediaToWatchlist(watchlistId: string, tmdbId: number, mediaType: "movie" | "tv") {
   const supabase = await createClient()
 
@@ -104,6 +164,7 @@ export async function addMediaToWatchlist(watchlistId: string, tmdbId: number, m
 
     // Revalidate the watchlist page
     revalidatePath(`/watchlist/${watchlistId}`)
+    revalidatePath("/dashboard")
 
     return { success: true, item: newItem }
   } catch (error: any) {
