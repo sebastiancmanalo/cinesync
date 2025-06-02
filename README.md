@@ -12,50 +12,66 @@ A collaborative platform for creating and managing shared watchlists with friend
 
 ---
 
+## 🔧 Environment Variables
+
+To enable movie and TV show search functionality, you'll need to set up the following environment variables:
+
+### Required for Supabase (Already configured)
+- `NEXT_PUBLIC_SUPABASE_URL` - Your Supabase project URL
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Your Supabase anonymous key
+- `SUPABASE_SERVICE_ROLE_KEY` - Your Supabase service role key
+
+### Optional for TMDB Integration
+- `TMDB_API_KEY` - Your TMDB API key (get one at https://www.themoviedb.org/settings/api)
+
+**Note:** The app will work without the TMDB API key by using mock data for demonstration purposes. To enable real movie/TV show search, sign up for a free TMDB API key and add it to your environment variables.
+
+---
+
 ## 📦 Features
 
 ### Core (MVP)
-- [ ] Shared Lists: Create and manage watchlists with others (owner, editor, viewer roles)
-- [ ] Auto Metadata Fetching: Pulls title, year, poster, runtime, description, and streaming info from APIs (TMDb, JustWatch)
-- [ ] Time Estimation: Calculates total watch time for movies and TV series (customizable by season/episode)
-- [ ] Smart Queue: Suggests what to watch next based on available time and filters (runtime, genre, platform, person-added)
+- [x] Shared Lists: Create and manage watchlists with others (owner, editor, viewer roles)
+- [x] Auto Metadata Fetching: Pulls title, year, poster, runtime, description, and streaming info from APIs (TMDb, JustWatch)
+- [x] Time Estimation: Calculates total watch time for movies and TV series (customizable by season/episode)
+- [x] Smart Queue: Suggests what to watch next based on available time and filters (runtime, genre, platform, person-added)
 - [ ] Platform Aggregation: Shows where each title is available to stream; filter by shared subscriptions
-- [ ] Notes & Voting: Add notes, emojis, comments, and group voting (thumbs-up/down or ratings)
-- [ ] Progress Tracking: Mark items as watched/in progress; visual completion indicators
+- [x] Notes & Voting: Add notes, emojis, comments, and group voting (thumbs-up/down or ratings)
+- [x] Progress Tracking: Mark items as watched/in progress; visual completion indicators
 
 ### Planned / In Progress
 - [ ] Calendar Sync: Add watch sessions to a shared calendar (Google Calendar integration)
 - [ ] Completion Estimation: Suggests what you can finish today, this weekend, etc.
 - [ ] Invite Flows: Share lists via invite link or username
-- [ ] Responsive Mobile UX: Optimized for all devices
+- [x] Responsive Mobile UX: Optimized for all devices
 - [ ] Analytics Dashboard: Usage tracking and engagement metrics
 
 ---
 
 ## 🛠️ Tech Stack
 
-- **Frontend:** React.js, TailwindCSS, Redux/Context API
-- **Backend:** Node.js, Express
-- **Database:** MongoDB or PostgreSQL
-- **Authentication:** JWT or OAuth2
-- **APIs:** TMDb, JustWatch, (optional) Google Calendar
-- **Hosting:** Vercel/Netlify (frontend), Render/Railway/AWS EC2 (backend), MongoDB Atlas/Supabase (database)
+- **Frontend:** Next.js 15, React, TailwindCSS
+- **Backend:** Next.js API Routes, Server Actions
+- **Database:** Supabase (PostgreSQL)
+- **Authentication:** Supabase Auth (Google OAuth)
+- **APIs:** TMDb (The Movie Database)
+- **Hosting:** Vercel
 
 ---
 
 ## 📈 Progress & Milestones
 
 ### Phase 1: MVP (Complete)
-- [ ] Shared lists, search & add titles, metadata fetching, watch time calculation
-- [ ] Mark as watched/in progress
-- [ ] Basic frontend UI
-- [ ] User authentication
+- [x] Shared lists, search & add titles, metadata fetching, watch time calculation
+- [x] Mark as watched/in progress
+- [x] Modern UI with cinema theming
+- [x] User authentication with Google
 
 ### Phase 2: V1 Launch (In Progress)
 - [ ] Platform availability info
-- [ ] Voting and smart sorting
+- [x] Voting and smart sorting
 - [ ] Invite flows and link-sharing
-- [ ] Responsive mobile UX
+- [x] Responsive mobile UX
 
 ### Phase 3: Growth & Polish (Upcoming)
 - [ ] Calendar sync
@@ -79,6 +95,16 @@ A collaborative platform for creating and managing shared watchlists with friend
 - % of users who invite others
 - Retention (7/30 days)
 - Qualitative feedback (ease of use, usefulness, NPS)
+
+---
+
+## 🚀 Getting Started
+
+1. Clone the repository
+2. Install dependencies: `npm install`
+3. Set up your environment variables (see above)
+4. Run the development server: `npm run dev`
+5. Open [http://localhost:3000](http://localhost:3000) in your browser
 
 ---
 

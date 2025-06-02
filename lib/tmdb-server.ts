@@ -1,8 +1,18 @@
 // Server-side TMDB utilities with secure API key access
-const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY || "demo_key"
+// Use TMDB_API_KEY (without NEXT_PUBLIC_ prefix) for server-only access
+const TMDB_API_KEY = process.env.TMDB_API_KEY
 const TMDB_BASE_URL = "https://api.themoviedb.org/3"
 
+if (!TMDB_API_KEY) {
+  console.warn("TMDB_API_KEY environment variable is not set")
+}
+
 export async function searchMoviesAndTVServer(query: string) {
+  if (!TMDB_API_KEY) {
+    console.error("TMDB API key not configured")
+    return []
+  }
+
   try {
     const response = await fetch(
       `${TMDB_BASE_URL}/search/multi?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}`,
@@ -21,6 +31,11 @@ export async function searchMoviesAndTVServer(query: string) {
 }
 
 export async function getMovieDetailsServer(id: number) {
+  if (!TMDB_API_KEY) {
+    console.error("TMDB API key not configured")
+    return null
+  }
+
   try {
     const response = await fetch(`${TMDB_BASE_URL}/movie/${id}?api_key=${TMDB_API_KEY}`)
 
@@ -36,6 +51,11 @@ export async function getMovieDetailsServer(id: number) {
 }
 
 export async function getTVDetailsServer(id: number) {
+  if (!TMDB_API_KEY) {
+    console.error("TMDB API key not configured")
+    return null
+  }
+
   try {
     const response = await fetch(`${TMDB_BASE_URL}/tv/${id}?api_key=${TMDB_API_KEY}`)
 
