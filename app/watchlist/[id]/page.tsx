@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -89,6 +89,7 @@ export default function WatchlistPage() {
   const [copySuccess, setCopySuccess] = useState(false)
   const [inviteStatus, setInviteStatus] = useState<null | { success: boolean; message: string }>(null)
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
     if (watchlistId && user) {
@@ -370,6 +371,7 @@ export default function WatchlistPage() {
       setNewMemberEmail("")
       setNewMemberRole("viewer")
       await fetchWatchlist()
+      router.refresh()
     } catch (error) {
       console.error("Error adding member:", error)
       alert("Failed to add member. Please try again.")
