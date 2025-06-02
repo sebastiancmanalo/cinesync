@@ -76,3 +76,13 @@ export interface ItemComment {
   created_at: string
   updated_at: string
 }
+
+export interface WatchlistInvitation {
+  id: string
+  watchlist_id: string
+  invited_user_id: string
+  invited_by_user_id: string
+  status: "pending" | "accepted" | "rejected"
+  created_at: string
+  updated_at: string
+}

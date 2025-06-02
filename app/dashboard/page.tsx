@@ -12,7 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Plus, Search, Clock, Users, Star, Calendar, MoreHorizontal, Filter, LogOut, Film, Trash2, Pencil } from "lucide-react"
 import Link from "next/link"
 import { ProtectedRoute } from "@/components/protected-route"
-import type { Watchlist, WatchlistItem, WatchlistMember } from "@/types/database"
+import type { Watchlist, WatchlistItem, WatchlistMember, User } from "@/types/database"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -23,9 +23,22 @@ interface WatchlistWithDetails extends Watchlist {
   watchlist_members: WatchlistMember[]
 }
 
+interface WatchlistInvitation {
+  id: string
+  watchlist_id: string
+  invited_user_id: string
+  invited_by_user_id: string
+  status: "pending" | "accepted" | "rejected"
+  created_at: string
+  updated_at: string
+  watchlist: Watchlist
+  invited_by: User
+}
+
 export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [watchlists, setWatchlists] = useState<WatchlistWithDetails[]>([])
+  const [pendingInvitations, setPendingInvitations] = useState<WatchlistInvitation[]>([])
   const [loading, setLoading] = useState(true)
   const { user, signOut } = useAuth()
   const supabase = createClient()
@@ -40,6 +53,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (user) {
       fetchWatchlists()
+      fetchPendingInvitations()
     }
   }, [user])
 
@@ -61,6 +75,26 @@ export default function DashboardPage() {
       console.error("Error fetching watchlists:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchPendingInvitations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("watchlist_invitations")
+        .select(`
+          *,
+          watchlist:watchlists(*),
+          invited_by:users!watchlist_invitations_invited_by_user_id_fkey(*)
+        `)
+        .eq("invited_user_id", user?.id)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
+
+      if (error) throw error
+      setPendingInvitations(data || [])
+    } catch (error) {
+      console.error("Error fetching invitations:", error)
     }
   }
 
@@ -123,6 +157,40 @@ export default function DashboardPage() {
       setEditingWatchlist(null)
     } catch (error) {
       console.error("Error updating watchlist:", error)
+    }
+  }
+
+  const handleInvitationResponse = async (invitationId: string, accept: boolean) => {
+    try {
+      const invitation = pendingInvitations.find(inv => inv.id === invitationId)
+      if (!invitation) return
+
+      if (accept) {
+        // Add user as member
+        const { error: memberError } = await supabase
+          .from("watchlist_members")
+          .insert({
+            watchlist_id: invitation.watchlist_id,
+            user_id: user?.id,
+            role: "member",
+          })
+
+        if (memberError) throw memberError
+      }
+
+      // Update invitation status
+      const { error: updateError } = await supabase
+        .from("watchlist_invitations")
+        .update({ status: accept ? "accepted" : "rejected" })
+        .eq("id", invitationId)
+
+      if (updateError) throw updateError
+
+      // Refresh data
+      await Promise.all([fetchWatchlists(), fetchPendingInvitations()])
+    } catch (error) {
+      console.error("Error handling invitation:", error)
+      alert("Failed to process invitation. Please try again.")
     }
   }
 
@@ -192,6 +260,46 @@ export default function DashboardPage() {
         </header>
 
         <div className="container mx-auto px-4 py-8">
+          {/* Pending Invitations */}
+          {pendingInvitations.length > 0 && (
+            <div className="mb-8">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Pending Invitations</h2>
+              <div className="space-y-4">
+                {pendingInvitations.map((invitation) => (
+                  <Card key={invitation.id} className="bg-white/95">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-medium text-gray-900">{invitation.watchlist.name}</h3>
+                          <p className="text-sm text-gray-600">
+                            Invited by {invitation.invited_by.full_name || invitation.invited_by.email}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleInvitationResponse(invitation.id, true)}
+                            className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black"
+                          >
+                            Accept
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleInvitationResponse(invitation.id, false)}
+                            className="bg-white/95 text-gray-900"
+                          >
+                            Decline
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-8">

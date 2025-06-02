@@ -338,26 +338,31 @@ export default function WatchlistPage() {
     }
   }
 
-  const handleRemoveMember = async (memberId: string) => {
-    if (!confirm("Are you sure you want to remove this member?")) return
-
-    try {
-      const { error } = await supabase
-        .from("watchlist_members")
-        .delete()
-        .eq("id", memberId)
-
-      if (error) throw error
-
-      await fetchWatchlist()
-    } catch (error) {
-      console.error("Error removing member:", error)
-      alert("Failed to remove member. Please try again.")
-    }
-  }
-
   const handleUpdateMemberRole = async (memberId: string, newRole: string) => {
     try {
+      const member = watchlist?.watchlist_members.find(m => m.id === memberId)
+      if (!member) return
+
+      // Check if current user is owner
+      const currentUserMember = watchlist?.watchlist_members.find(m => m.user_id === user?.id)
+      if (!currentUserMember || currentUserMember.role !== "owner") {
+        alert("Only the owner can change member roles")
+        return
+      }
+
+      // If changing to owner, ensure there's only one owner
+      if (newRole === "owner") {
+        const currentOwner = watchlist?.watchlist_members.find(m => m.role === "owner")
+        if (currentOwner && currentOwner.id !== memberId) {
+          // Update current owner to admin
+          await supabase
+            .from("watchlist_members")
+            .update({ role: "admin" })
+            .eq("id", currentOwner.id)
+        }
+      }
+
+      // Update member role
       const { error } = await supabase
         .from("watchlist_members")
         .update({ role: newRole })
@@ -369,6 +374,43 @@ export default function WatchlistPage() {
     } catch (error) {
       console.error("Error updating member role:", error)
       alert("Failed to update member role. Please try again.")
+    }
+  }
+
+  const handleRemoveMember = async (memberId: string) => {
+    try {
+      const member = watchlist?.watchlist_members.find(m => m.id === memberId)
+      if (!member) return
+
+      // Check if current user is owner
+      const currentUserMember = watchlist?.watchlist_members.find(m => m.user_id === user?.id)
+      if (!currentUserMember || currentUserMember.role !== "owner") {
+        alert("Only the owner can remove members")
+        return
+      }
+
+      // Prevent removing the last owner
+      if (member.role === "owner") {
+        const ownerCount = watchlist?.watchlist_members.filter(m => m.role === "owner").length || 0
+        if (ownerCount <= 1) {
+          alert("Cannot remove the last owner. Please transfer ownership first.")
+          return
+        }
+      }
+
+      if (!confirm("Are you sure you want to remove this member?")) return
+
+      const { error } = await supabase
+        .from("watchlist_members")
+        .delete()
+        .eq("id", memberId)
+
+      if (error) throw error
+
+      await fetchWatchlist()
+    } catch (error) {
+      console.error("Error removing member:", error)
+      alert("Failed to remove member. Please try again.")
     }
   }
 
@@ -399,19 +441,46 @@ export default function WatchlistPage() {
         return
       }
 
-      // Add the member to the watchlist
-      const { error } = await supabase.from("watchlist_members").insert({
+      // Check if user is already a member
+      const { data: existingMember } = await supabase
+        .from("watchlist_members")
+        .select("id")
+        .eq("watchlist_id", watchlistId)
+        .eq("user_id", userData.id)
+        .single()
+
+      if (existingMember) {
+        alert("User is already a member of this watchlist")
+        return
+      }
+
+      // Check if there's already a pending invitation
+      const { data: existingInvitation } = await supabase
+        .from("watchlist_invitations")
+        .select("id")
+        .eq("watchlist_id", watchlistId)
+        .eq("invited_user_id", userData.id)
+        .eq("status", "pending")
+        .single()
+
+      if (existingInvitation) {
+        alert("User already has a pending invitation")
+        return
+      }
+
+      // Create invitation
+      const { error } = await supabase.from("watchlist_invitations").insert({
         watchlist_id: watchlistId,
-        user_id: userData.id,
-        role: "member",
+        invited_user_id: userData.id,
+        invited_by_user_id: user?.id,
+        status: "pending",
       })
 
       if (error) throw error
 
       setShareEmail("")
       setIsShareDialogOpen(false)
-      await fetchWatchlist()
-      alert("Watchlist shared successfully!")
+      alert("Invitation sent successfully!")
     } catch (error) {
       console.error("Error sharing watchlist:", error)
       alert("Failed to share watchlist. Please try again.")
@@ -889,9 +958,8 @@ export default function WatchlistPage() {
                       <SelectValue placeholder="Role" />
                     </SelectTrigger>
                     <SelectContent className="bg-white/95">
-                      <SelectItem value="owner">Owner</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
                       <SelectItem value="member">Member</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
                     </SelectContent>
                   </Select>
                   <Button onClick={handleAddMember} className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black">
@@ -904,45 +972,63 @@ export default function WatchlistPage() {
               <div className="space-y-4">
                 <h3 className="font-medium text-gray-900">Current Members</h3>
                 <div className="space-y-2">
-                  {watchlist?.watchlist_members.map((member) => (
-                    <div key={member.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="w-8 h-8">
-                          <AvatarImage src={member.user.avatar_url || "/placeholder.svg"} />
-                          <AvatarFallback>
-                            {member.user.full_name?.charAt(0) || member.user.email?.charAt(0) || "U"}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{member.user.full_name || member.user.email}</p>
-                          <p className="text-xs text-gray-500">{member.user.email}</p>
+                  {watchlist?.watchlist_members.map((member) => {
+                    const isCurrentUser = member.user_id === user?.id
+                    const isOwner = member.role === "owner"
+                    const canManage = watchlist?.watchlist_members.find(m => m.user_id === user?.id)?.role === "owner"
+
+                    return (
+                      <div key={member.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="w-8 h-8">
+                            <AvatarImage src={member.user.avatar_url || "/placeholder.svg"} />
+                            <AvatarFallback>
+                              {member.user.full_name?.charAt(0) || member.user.email?.charAt(0) || "U"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">
+                              {member.user.full_name || member.user.email}
+                              {isCurrentUser && " (You)"}
+                            </p>
+                            <p className="text-xs text-gray-500">{member.user.email}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {canManage && !isCurrentUser && (
+                            <Select
+                              value={member.role}
+                              onValueChange={(value) => handleUpdateMemberRole(member.id, value)}
+                            >
+                              <SelectTrigger className="w-[100px] bg-white/95 text-gray-900">
+                                <SelectValue placeholder="Role" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-white/95">
+                                <SelectItem value="owner">Owner</SelectItem>
+                                <SelectItem value="admin">Admin</SelectItem>
+                                <SelectItem value="member">Member</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
+                          {!isOwner && canManage && !isCurrentUser && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleRemoveMember(member.id)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {!canManage && (
+                            <Badge variant="secondary" className="text-xs">
+                              {member.role}
+                            </Badge>
+                          )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Select
-                          value={member.role}
-                          onValueChange={(value) => handleUpdateMemberRole(member.id, value)}
-                        >
-                          <SelectTrigger className="w-[100px] bg-white/95 text-gray-900">
-                            <SelectValue placeholder="Role" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-white/95">
-                            <SelectItem value="owner">Owner</SelectItem>
-                            <SelectItem value="admin">Admin</SelectItem>
-                            <SelectItem value="member">Member</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleRemoveMember(member.id)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             </div>
