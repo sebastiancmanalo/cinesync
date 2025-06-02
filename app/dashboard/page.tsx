@@ -158,7 +158,7 @@ export default function DashboardPage() {
                     placeholder="Search watchlists..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 w-64 bg-white text-gray-900"
+                    className="pl-10 w-64 bg-white/95 text-gray-900"
                   />
                 </div>
                 <Link href="/lists/new">
@@ -176,7 +176,7 @@ export default function DashboardPage() {
                       </AvatarFallback>
                     </Avatar>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" className="bg-white/95">
                     <DropdownMenuItem onClick={signOut}>
                       <LogOut className="w-4 h-4 mr-2" />
                       Sign Out
@@ -194,7 +194,7 @@ export default function DashboardPage() {
             <div className="lg:col-span-2 space-y-8">
               {/* Quick Stats */}
               <div className="grid md:grid-cols-3 gap-4">
-                <Card className="bg-white/80">
+                <Card className="bg-white/95">
                   <CardContent className="p-6">
                     <div className="flex items-center gap-4">
                       <div className="p-3 bg-purple-100 rounded-lg">
@@ -208,7 +208,7 @@ export default function DashboardPage() {
                   </CardContent>
                 </Card>
 
-                <Card className="bg-white/80">
+                <Card className="bg-white/95">
                   <CardContent className="p-6">
                     <div className="flex items-center gap-4">
                       <div className="p-3 bg-yellow-50 rounded-lg">
@@ -229,7 +229,7 @@ export default function DashboardPage() {
                   </CardContent>
                 </Card>
 
-                <Card className="bg-white/80">
+                <Card className="bg-white/95">
                   <CardContent className="p-6">
                     <div className="flex items-center gap-4">
                       <div className="p-3 bg-orange-50 rounded-lg">
@@ -249,11 +249,11 @@ export default function DashboardPage() {
               {/* Watchlists */}
               <div>
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900">Your Watchlists</h2>
+                  <h2 className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">Your Watchlists</h2>
                 </div>
 
                 {filteredWatchlists.length === 0 ? (
-                  <Card className="bg-white/80 p-12 text-center">
+                  <Card className="bg-white/95 p-12 text-center">
                     <Film className="h-16 w-16 text-gray-400 mx-auto mb-6" />
                     <h3 className="text-xl font-semibold text-gray-900 mb-4">
                       {searchQuery ? "No watchlists found" : "No watchlists yet"}
@@ -280,7 +280,7 @@ export default function DashboardPage() {
                       const watchedItems = list.watchlist_items?.filter((item) => item.status === "watched").length || 0
 
                       return (
-                        <Card key={list.id} className="hover:shadow-md transition-shadow cursor-pointer bg-white/80">
+                        <Card key={list.id} className="hover:shadow-md transition-shadow cursor-pointer bg-white/95">
                           <Link href={`/watchlist/${list.id}`}>
                             <CardContent className="p-6">
                               <div className="flex items-center justify-between">
@@ -369,9 +369,9 @@ export default function DashboardPage() {
             {/* Sidebar */}
             <div className="space-y-6">
               {/* Welcome Message */}
-              <Card className="bg-white/80">
+              <Card className="bg-white/95">
                 <CardHeader>
-                  <CardTitle className="text-yellow-700">
+                  <CardTitle className="bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">
                     Welcome back, {user?.user_metadata?.full_name || user?.email?.split("@")[0]}!
                   </CardTitle>
                   <CardDescription className="text-pink-600">Ready for your next movie night?</CardDescription>
@@ -379,22 +379,22 @@ export default function DashboardPage() {
               </Card>
 
               {/* Quick Actions */}
-              <Card className="bg-white/80">
+              <Card className="bg-white/95">
                 <CardHeader>
-                  <CardTitle className="text-gray-900">Quick Actions</CardTitle>
+                  <CardTitle className="bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">Quick Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <Link href="/lists/new">
-                    <Button className="w-full justify-start">
+                    <Button className="w-full justify-start bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black">
                       <Plus className="w-4 h-4 mr-2" />
                       Create New List
                     </Button>
                   </Link>
-                  <Button variant="outline" className="w-full justify-start">
+                  <Button variant="outline" className="w-full justify-start bg-white/95">
                     <Search className="w-4 h-4 mr-2" />
                     Browse Movies
                   </Button>
-                  <Button variant="outline" className="w-full justify-start">
+                  <Button variant="outline" className="w-full justify-start bg-white/95">
                     <Calendar className="w-4 h-4 mr-2" />
                     Schedule Watch Time
                   </Button>
@@ -402,9 +402,9 @@ export default function DashboardPage() {
               </Card>
 
               {/* Time Suggestion */}
-              <Card className="bg-white/80">
+              <Card className="bg-white/95">
                 <CardHeader>
-                  <CardTitle className="text-gray-900">Tonight's Suggestion</CardTitle>
+                  <CardTitle className="bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">Tonight's Suggestion</CardTitle>
                   <CardDescription className="text-gray-600">Based on your 2 hour window</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -414,7 +414,7 @@ export default function DashboardPage() {
                       Add some movies to your watchlists to get personalized recommendations!
                     </p>
                     <Link href="/lists/new">
-                      <Button size="sm" className="w-full bg-gradient-to-r from-yellow-400 to-pink-500 hover:from-yellow-500 hover:to-pink-600 text-white">
+                      <Button size="sm" className="w-full bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black">
                         Create Your First List
                       </Button>
                     </Link>
@@ -429,7 +429,7 @@ export default function DashboardPage() {
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent className="bg-white/95">
             <DialogHeader>
-              <DialogTitle>Edit Watchlist</DialogTitle>
+              <DialogTitle className="bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">Edit Watchlist</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
@@ -439,6 +439,7 @@ export default function DashboardPage() {
                   value={editForm.name}
                   onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
                   placeholder="Enter watchlist name"
+                  className="bg-white/95"
                 />
               </div>
               <div className="space-y-2">
@@ -448,15 +449,17 @@ export default function DashboardPage() {
                   value={editForm.description}
                   onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
                   placeholder="Enter watchlist description"
-                  className="min-h-[100px]"
+                  className="min-h-[100px] bg-white/95"
                 />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="bg-white/95">
                 Cancel
               </Button>
-              <Button onClick={handleEditWatchlist}>Save Changes</Button>
+              <Button onClick={handleEditWatchlist} className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black">
+                Save Changes
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

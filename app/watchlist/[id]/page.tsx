@@ -422,8 +422,10 @@ export default function WatchlistPage() {
                   </Button>
                 </Link>
                 <Link href="/" className="flex items-center gap-2">
-                  <Play className="w-8 h-8 text-purple-600" />
-                  <span className="text-2xl font-bold text-gray-900">WatchTogether</span>
+                  <Play className="w-8 h-8 text-yellow-400" />
+                  <span className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">
+                    WatchTogether
+                  </span>
                 </Link>
               </div>
 
@@ -438,7 +440,7 @@ export default function WatchlistPage() {
                       </AvatarFallback>
                     </Avatar>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" className="bg-white/95">
                     <DropdownMenuItem onClick={signOut}>
                       <LogOut className="w-4 h-4 mr-2" />
                       Sign Out
@@ -455,7 +457,7 @@ export default function WatchlistPage() {
           <div className="mb-8">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">{watchlist.name}</h1>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent mb-2">{watchlist.name}</h1>
                 {watchlist.description && <p className="text-gray-600 mb-4">{watchlist.description}</p>}
 
                 <div className="flex items-center gap-6 text-sm text-gray-600">
@@ -475,7 +477,7 @@ export default function WatchlistPage() {
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline">
+                  <Button variant="outline" className="bg-white/95">
                     <Settings className="w-4 h-4 mr-2" />
                     Manage List
                   </Button>
@@ -507,7 +509,7 @@ export default function WatchlistPage() {
                   <span className="text-sm font-medium">Progress</span>
                   <span className="text-sm text-gray-600">{Math.round((watchedItems / totalItems) * 100)}%</span>
                 </div>
-                <Progress value={(watchedItems / totalItems) * 100} className="h-2" />
+                <Progress value={(watchedItems / totalItems) * 100} className="h-2 bg-gray-200" />
               </div>
             )}
 
@@ -541,7 +543,7 @@ export default function WatchlistPage() {
                 placeholder="Search movies and shows..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="pl-10 bg-white/95"
               />
             </div>
 
@@ -551,6 +553,7 @@ export default function WatchlistPage() {
                   key={filterOption}
                   variant={filter === filterOption ? "default" : "outline"}
                   size="sm"
+                  className={filter === filterOption ? "bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black" : "bg-white/95"}
                   onClick={() => setFilter(filterOption)}
                 >
                   {filterOption.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase())}
@@ -568,7 +571,7 @@ export default function WatchlistPage() {
               return (
                 <Card 
                   key={item.id} 
-                  className={`hover:shadow-md transition-shadow ${
+                  className={`hover:shadow-md transition-shadow bg-white/95 ${
                     item.status === "watched" ? "opacity-75" : ""
                   }`}
                 >
@@ -773,7 +776,7 @@ export default function WatchlistPage() {
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent className="bg-white/95">
             <DialogHeader>
-              <DialogTitle>Edit Watchlist</DialogTitle>
+              <DialogTitle className="bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">Edit Watchlist</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
@@ -809,7 +812,7 @@ export default function WatchlistPage() {
         <Dialog open={isMembersDialogOpen} onOpenChange={setIsMembersDialogOpen}>
           <DialogContent className="bg-white/95">
             <DialogHeader>
-              <DialogTitle>Manage Members</DialogTitle>
+              <DialogTitle className="bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">Manage Members</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               {/* Add New Member */}
@@ -891,7 +894,7 @@ export default function WatchlistPage() {
         <Dialog open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
           <DialogContent className="bg-white/95">
             <DialogHeader>
-              <DialogTitle>Change Watch Date</DialogTitle>
+              <DialogTitle className="bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">Change Watch Date</DialogTitle>
             </DialogHeader>
             <div className="py-4">
               <Calendar
