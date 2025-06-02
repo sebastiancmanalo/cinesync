@@ -38,19 +38,24 @@ export async function GET(request: Request) {
         id,
         name,
         watchlist_items (
-          movie_id
+          movie_id,
+          status
+        ),
+        watchlist_members (
+          user_id
         )
       `)
-      .eq("user_id", userId)
+      .or(`owner_id.eq.${userId},watchlist_members.user_id.eq.${userId}`)
 
     if (watchlistsError) {
       throw watchlistsError
     }
 
-    // Extract all movie IDs from watchlists
+    // Extract all movie IDs from watchlists, excluding watched items
     const movieIds = watchlists
       .flatMap((watchlist) => watchlist.watchlist_items)
-      .map((movie) => movie.movie_id)
+      .filter((item) => item.status !== "watched")
+      .map((item) => item.movie_id)
 
     if (movieIds.length === 0) {
       return NextResponse.json({ recommendations: [] })
@@ -67,9 +72,9 @@ export async function GET(request: Request) {
     )
 
     // Create a prompt for OpenAI
-    const prompt = `Based on these movies: ${movieDetails
+    const prompt = `Based on these movies that the user has in their watchlists: ${movieDetails
       .map((movie) => movie.title)
-      .join(", ")}, recommend 3 similar movies that the user might enjoy. For each movie, provide a one-sentence explanation of why they would like it based on their viewing history.`
+      .join(", ")}, recommend 3 similar movies that the user might enjoy. For each movie, provide a one-sentence explanation of why they would like it based on their viewing history. Focus on recommending movies that are similar in genre, style, or theme to the ones they've already chosen to watch.`
 
     // Get recommendations from OpenAI
     const completion = await openai.chat.completions.create({
