@@ -32,6 +32,9 @@ import {
   Pencil,
   X,
   Film,
+  Share2,
+  Copy,
+  Mail,
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -79,6 +82,10 @@ export default function WatchlistPage() {
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<WatchlistItem | null>(null)
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false)
+  const [shareLink, setShareLink] = useState("")
+  const [shareEmail, setShareEmail] = useState("")
+  const [copySuccess, setCopySuccess] = useState(false)
 
   useEffect(() => {
     if (watchlistId && user) {
@@ -94,6 +101,12 @@ export default function WatchlistPage() {
       })
     }
   }, [watchlist])
+
+  useEffect(() => {
+    if (watchlistId) {
+      setShareLink(`${window.location.origin}/watchlist/${watchlistId}`)
+    }
+  }, [watchlistId])
 
   const fetchWatchlist = async () => {
     try {
@@ -360,6 +373,52 @@ export default function WatchlistPage() {
     }
   }
 
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareLink)
+      setCopySuccess(true)
+      setTimeout(() => setCopySuccess(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy link:', err)
+    }
+  }
+
+  const handleShareViaEmail = async () => {
+    if (!shareEmail.trim()) return
+
+    try {
+      // First, get the user ID from the email
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("id")
+        .eq("email", shareEmail.trim())
+        .single()
+
+      if (userError) throw userError
+      if (!userData) {
+        alert("User not found")
+        return
+      }
+
+      // Add the member to the watchlist
+      const { error } = await supabase.from("watchlist_members").insert({
+        watchlist_id: watchlistId,
+        user_id: userData.id,
+        role: "member",
+      })
+
+      if (error) throw error
+
+      setShareEmail("")
+      setIsShareDialogOpen(false)
+      await fetchWatchlist()
+      alert("Watchlist shared successfully!")
+    } catch (error) {
+      console.error("Error sharing watchlist:", error)
+      alert("Failed to share watchlist. Please try again.")
+    }
+  }
+
   if (loading) {
     return (
       <ProtectedRoute>
@@ -416,7 +475,7 @@ export default function WatchlistPage() {
         <header className="bg-white border-b border-gray-200">
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
                 <Link href="/dashboard">
                   <Button variant="ghost" size="icon">
                     <ArrowLeft className="w-4 h-4" />
@@ -459,7 +518,7 @@ export default function WatchlistPage() {
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent mb-2">{watchlist.name}</h1>
-                {watchlist.description && <p className="text-gray-600 mb-4">{watchlist.description}</p>}
+                {watchlist.description && <p className="text-gray-900 mb-4">{watchlist.description}</p>}
 
                 <div className="flex items-center gap-6 text-sm text-gray-600">
                   <div className="flex items-center gap-1">
@@ -476,31 +535,24 @@ export default function WatchlistPage() {
                 </div>
               </div>
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="bg-white/95">
-                    <Settings className="w-4 h-4 mr-2" />
-                    Manage List
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-white/95">
-                  <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>
-                    <Pencil className="w-4 h-4 mr-2" />
-                    Edit List Details
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setIsMembersDialogOpen(true)}>
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Manage Members
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                    onClick={handleDeleteWatchlist}
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Delete Watchlist
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  className="bg-white/95 text-gray-900 hover:bg-gray-100"
+                  onClick={() => setIsShareDialogOpen(true)}
+                >
+                  <Share2 className="w-4 h-4 mr-2" />
+                  Share List
+                </Button>
+                <Button
+                  variant="outline"
+                  className="bg-white/95 text-gray-900 hover:bg-gray-100"
+                  onClick={() => setIsEditDialogOpen(true)}
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  Manage List
+                </Button>
+              </div>
             </div>
 
             {/* Progress Bar */}
@@ -508,9 +560,12 @@ export default function WatchlistPage() {
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-gray-900">Progress</span>
-                  <span className="text-sm text-gray-600">{Math.round((watchedItems / totalItems) * 100)}%</span>
+                  <span className="text-sm text-gray-900">{Math.round((watchedItems / totalItems) * 100)}%</span>
                 </div>
-                <Progress value={(watchedItems / totalItems) * 100} className="h-2 bg-gray-200" />
+                <Progress 
+                  value={(watchedItems / totalItems) * 100} 
+                  className="h-2 bg-gray-200 [&>div]:bg-gradient-to-r [&>div]:from-pink-500 [&>div]:to-yellow-400" 
+                />
               </div>
             )}
 
@@ -598,12 +653,12 @@ export default function WatchlistPage() {
                             <h3 className="text-lg font-semibold text-gray-900 mb-1">
                               {item.title} ({item.release_date ? new Date(item.release_date).getFullYear() : "N/A"})
                             </h3>
-                            <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
+                            <div className="flex items-center gap-4 text-sm text-gray-900 mb-2">
                               <div className="flex items-center gap-1">
                                 <Clock className="w-4 h-4" />
                                 {formatTime(item.estimated_watch_time)}
                               </div>
-                              <Badge variant="outline" className="text-xs">
+                              <Badge variant="outline" className="text-gray-900">
                                 {item.media_type === "movie" ? "Movie" : "TV Show"}
                               </Badge>
                               <span>Added by {item.added_by_user?.full_name || item.added_by_user?.email}</span>
@@ -924,6 +979,67 @@ export default function WatchlistPage() {
               </Button>
               <Button onClick={handleUpdateWatchDate} className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black">
                 Save Date
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Share Dialog */}
+        <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
+          <DialogContent className="bg-white/95">
+            <DialogHeader>
+              <DialogTitle className="bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">Share Watchlist</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              {/* Share via Link */}
+              <div className="space-y-2">
+                <Label className="text-gray-900">Share via Link</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={shareLink}
+                    readOnly
+                    className="bg-white/95 text-gray-900"
+                  />
+                  <Button
+                    onClick={handleCopyLink}
+                    className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black"
+                  >
+                    {copySuccess ? (
+                      <CheckCircle className="w-4 h-4" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Share via Email */}
+              <div className="space-y-2">
+                <Label className="text-gray-900">Share via Email</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="email"
+                    placeholder="Enter email address"
+                    value={shareEmail}
+                    onChange={(e) => setShareEmail(e.target.value)}
+                    className="bg-white/95 text-gray-900"
+                  />
+                  <Button
+                    onClick={handleShareViaEmail}
+                    className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black"
+                  >
+                    <Mail className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsShareDialogOpen(false)}
+                className="bg-white/95 text-gray-900"
+              >
+                Close
               </Button>
             </DialogFooter>
           </DialogContent>

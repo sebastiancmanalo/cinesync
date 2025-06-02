@@ -16,6 +16,7 @@ import type { Watchlist, WatchlistItem, WatchlistMember } from "@/types/database
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { useRouter } from "next/navigation"
 
 interface WatchlistWithDetails extends Watchlist {
   watchlist_items: WatchlistItem[]
@@ -34,6 +35,7 @@ export default function DashboardPage() {
     name: "",
     description: "",
   })
+  const router = useRouter()
 
   useEffect(() => {
     if (user) {
@@ -161,12 +163,13 @@ export default function DashboardPage() {
                     className="pl-10 w-64 bg-white/95 text-gray-900"
                   />
                 </div>
-                <Link href="/lists/new">
-                  <Button className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black font-medium">
-                    <Plus className="w-4 h-4 mr-2" />
-                    New List
-                  </Button>
-                </Link>
+                <Button
+                  onClick={() => router.push("/lists/new")}
+                  className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create New List
+                </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Avatar className="cursor-pointer">
@@ -384,17 +387,24 @@ export default function DashboardPage() {
                   <CardTitle className="bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">Quick Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <Link href="/lists/new">
-                    <Button className="w-full justify-start bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create New List
-                    </Button>
-                  </Link>
-                  <Button variant="outline" className="w-full justify-start bg-white/95">
+                  <Button
+                    onClick={() => router.push("/lists/new")}
+                    className="w-full justify-start bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create New List
+                  </Button>
+                  <Button
+                    onClick={() => router.push("/browse")}
+                    className="w-full justify-start bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black"
+                  >
                     <Search className="w-4 h-4 mr-2" />
                     Browse Movies
                   </Button>
-                  <Button variant="outline" className="w-full justify-start bg-white/95">
+                  <Button
+                    onClick={() => router.push("/schedule")}
+                    className="w-full justify-start bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black"
+                  >
                     <Calendar className="w-4 h-4 mr-2" />
                     Schedule Watch Time
                   </Button>
