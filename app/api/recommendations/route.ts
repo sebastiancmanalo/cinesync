@@ -107,14 +107,24 @@ export async function GET(request: Request) {
     }
 
     // Prepare prompt and context
-    const titles = movieDetails
-      .map((movie) => movie.title)
-      .filter((title): title is string => typeof title === 'string' && !!title)
+    // Gather metadata for each movie
+    const movieMeta = movieDetails
+      .filter((movie) => typeof movie.title === 'string' && !!movie.title)
+      .map((movie) => {
+        const genres = Array.isArray(movie.genres)
+          ? movie.genres.map((g: { name: string }) => g.name).join(', ')
+          : ''
+        const language = movie.original_language || ''
+        const country = Array.isArray(movie.production_countries) && movie.production_countries.length > 0
+          ? movie.production_countries.map((c: { name: string }) => c.name).join(', ')
+          : ''
+        return `- Title: ${movie.title} | Genres: ${genres} | Language: ${language} | Country: ${country}`
+      })
     let prompt = ""
-    if (titles.length <= 3) {
-      prompt = `I only have these in my watchlist: ${titles.join(", ")}. Recommend 3 new movies or shows I haven't seen yet, and don't repeat any from my list. Do NOT recommend any movie or show that is already in my watchlist. Only recommend real, well-known movies or shows that are listed on IMDb and TMDB, and that match the genre(s), style, language, and country of origin of my watchlist. Do NOT recommend anything outside these genres or countries. For each, provide the exact title, the IMDb ID (if available), a comma-separated list of which of my watchlist movies inspired the recommendation (as 'BasedOn'—but the recommendation itself must NOT be in my watchlist), and a one-sentence informal recommendation directed to me (second person, e.g., 'You'll love this because...'). Format each as:\nTitle: ...\nIMDb: ...\nBasedOn: ...\nBlurb: ...`;
+    if (movieMeta.length <= 3) {
+      prompt = `Here are the movies/shows in my watchlist:\n${movieMeta.join("\n")}. Recommend 3 new movies or shows I haven't seen yet, and don't repeat any from my list. Do NOT recommend any movie or show that is already in my watchlist. Only recommend real, well-known movies or shows that are listed on IMDb and TMDB, and that match the genre(s), style, language, and country of origin of my watchlist. Do NOT recommend anything outside these genres or countries. For each, provide the exact title, the IMDb ID (if available), a comma-separated list of which of my watchlist movies inspired the recommendation (as 'BasedOn'—but the recommendation itself must NOT be in my watchlist), and a one-sentence informal recommendation directed to me (second person, e.g., 'You'll love this because...'). Format each as:\nTitle: ...\nIMDb: ...\nBasedOn: ...\nBlurb: ...`;
     } else {
-      prompt = `Here are some movies and shows currently on my watchlists: ${titles.join(", ")}. Based on these, recommend 3 new movies or shows I haven't seen yet. Do NOT recommend any movie or show that is already in my watchlist. Only recommend real, well-known movies or shows that are listed on IMDb and TMDB, and that match the genre(s), style, language, and country of origin of my watchlist. Do NOT recommend anything outside these genres or countries. For each, provide the exact title, the IMDb ID (if available), a comma-separated list of which of my watchlist movies inspired the recommendation (as 'BasedOn'—but the recommendation itself must NOT be in my watchlist), and a one-sentence informal recommendation directed to me (second person, e.g., 'You'll love this because...'). Format each as:\nTitle: ...\nIMDb: ...\nBasedOn: ...\nBlurb: ...`;
+      prompt = `Here are the movies/shows in my watchlist:\n${movieMeta.join("\n")}. Based on these, recommend 3 new movies or shows I haven't seen yet. Do NOT recommend any movie or show that is already in my watchlist. Only recommend real, well-known movies or shows that are listed on IMDb and TMDB, and that match the genre(s), style, language, and country of origin of my watchlist. Do NOT recommend anything outside these genres or countries. For each, provide the exact title, the IMDb ID (if available), a comma-separated list of which of my watchlist movies inspired the recommendation (as 'BasedOn'—but the recommendation itself must NOT be in my watchlist), and a one-sentence informal recommendation directed to me (second person, e.g., 'You'll love this because...'). Format each as:\nTitle: ...\nIMDb: ...\nBasedOn: ...\nBlurb: ...`;
     }
     console.log("About to call OpenRouter");
 
@@ -155,7 +165,7 @@ export async function GET(request: Request) {
     console.log("Parsed recommendations:", recs)
 
     // Filter out any recommendations already in the user's watchlist
-    const userTitles = new Set(titles.map(t => t.toLowerCase()))
+    const userTitles = new Set(movieMeta.map(t => t.toLowerCase()))
     const filteredRecs = recs.filter((rec) => !userTitles.has(rec.title.toLowerCase()))
 
     // Get movie details from TMDB using IMDb ID if available, otherwise fallback to search
