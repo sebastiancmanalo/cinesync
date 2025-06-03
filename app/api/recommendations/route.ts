@@ -68,7 +68,7 @@ export async function GET(request: Request) {
     // 3. Get all items for those watchlists
     const { data: items, error: itemsError } = await supabase
       .from("watchlist_items")
-      .select("movie_id, status")
+      .select("tmdb_id, status")
       .in("watchlist_id", allWatchlistIds)
     if (itemsError) {
       console.error("Error fetching watchlist items:", itemsError)
@@ -79,7 +79,7 @@ export async function GET(request: Request) {
     // Only consider unwatched items
     const movieIds = (items || [])
       .filter((item) => item.status !== "watched")
-      .map((item) => item.movie_id)
+      .map((item) => item.tmdb_id)
       .filter(Boolean)
     console.log("Filtered movie IDs:", movieIds)
 
