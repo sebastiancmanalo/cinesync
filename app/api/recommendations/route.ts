@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
-import OpenAI from "openai"
 import { TMDB_API_KEY } from "@/lib/constants"
 
 const supabase = createClient(
@@ -8,10 +7,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
-
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY
 const TMDB_BASE_URL = "https://api.themoviedb.org/3"
 
 interface Movie {
@@ -109,23 +105,36 @@ export async function GET(request: Request) {
       return NextResponse.json({ recommendations: [] })
     }
 
-    // Create a prompt for OpenAI
+    // Create a prompt for OpenRouter
     const prompt = `Based on these movies that the user has in their watchlists: ${movieDetails
       .map((movie) => movie.title)
       .join(", ")}, recommend 3 similar movies that the user might enjoy. For each movie, provide a one-sentence explanation of why they would like it based on their viewing history. Focus on recommending movies that are similar in genre, style, or theme to the ones they've already chosen to watch.`
-    console.log("About to call OpenAI");
+    console.log("About to call OpenRouter");
 
-    // Get recommendations from OpenAI
-    const completion = await openai.chat.completions.create({
-      messages: [{ role: "user", content: prompt }],
-      model: "gpt-3.5-turbo",
-    })
-    console.log("OpenAI call complete");
+    // Get recommendations from OpenRouter
+    const openrouterRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'openai/gpt-3.5-turbo',
+        messages: [{ role: 'user', content: prompt }],
+      })
+    });
+    if (!openrouterRes.ok) {
+      const err = await openrouterRes.text();
+      console.error("OpenRouter error:", err);
+      throw new Error("OpenRouter API error: " + err);
+    }
+    const openrouterData = await openrouterRes.json();
+    console.log("OpenRouter call complete");
 
-    const recommendations = completion.choices[0].message.content
+    const recommendations = openrouterData.choices?.[0]?.message?.content
       ?.split("\n")
-      .filter((line) => line.trim())
-      .map((line) => {
+      .filter((line: string) => line.trim())
+      .map((line: string) => {
         const [title, reason] = line.split(" - ")
         return { title: title.replace(/^\d+\.\s*/, ""), reason }
       })
@@ -133,7 +142,7 @@ export async function GET(request: Request) {
 
     // Get movie details from TMDB for recommended movies
     const recommendedMovies = await Promise.all(
-      recommendations?.map(async (rec) => {
+      recommendations?.map(async (rec: any) => {
         try {
           const response = await fetch(
             `${TMDB_BASE_URL}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(
