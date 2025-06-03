@@ -24,10 +24,12 @@ interface Movie {
 
 export async function GET(request: Request) {
   try {
+    console.log("START recommendations API");
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get("userId")
 
     if (!userId) {
+      console.log("No userId provided");
       return NextResponse.json({ error: "User ID is required" }, { status: 400 })
     }
 
@@ -36,20 +38,30 @@ export async function GET(request: Request) {
       .from("watchlists")
       .select("id")
       .eq("owner_id", userId)
-    if (ownedError) throw ownedError
+    if (ownedError) {
+      console.error("Error fetching owned watchlists:", ownedError)
+      throw ownedError
+    }
+    console.log("Fetched owned watchlists", owned?.length)
 
     // 2. Watchlists where user is a member
     const { data: memberRows, error: memberError } = await supabase
       .from("watchlist_members")
       .select("watchlist_id")
       .eq("user_id", userId)
-    if (memberError) throw memberError
+    if (memberError) {
+      console.error("Error fetching member watchlists:", memberError)
+      throw memberError
+    }
+    console.log("Fetched member watchlists", memberRows?.length)
 
     const memberIds = memberRows?.map(row => row.watchlist_id) || []
     const ownedIds = owned?.map(row => row.id) || []
     const allWatchlistIds = Array.from(new Set([...ownedIds, ...memberIds]))
+    console.log("Merged all watchlist IDs:", allWatchlistIds)
 
     if (allWatchlistIds.length === 0) {
+      console.log("No visible watchlists for user")
       return NextResponse.json({ recommendations: [] })
     }
 
@@ -58,15 +70,21 @@ export async function GET(request: Request) {
       .from("watchlist_items")
       .select("movie_id, status")
       .in("watchlist_id", allWatchlistIds)
-    if (itemsError) throw itemsError
+    if (itemsError) {
+      console.error("Error fetching watchlist items:", itemsError)
+      throw itemsError
+    }
+    console.log("Fetched items:", items?.length)
 
     // Only consider unwatched items
     const movieIds = (items || [])
       .filter((item) => item.status !== "watched")
       .map((item) => item.movie_id)
       .filter(Boolean)
+    console.log("Filtered movie IDs:", movieIds)
 
     if (movieIds.length === 0) {
+      console.log("No movies found in watchlists")
       return NextResponse.json({ recommendations: [] })
     }
 
@@ -84,8 +102,10 @@ export async function GET(request: Request) {
         }
       })
     ).then(results => results.filter(Boolean))
+    console.log("Fetched movie details:", movieDetails.length)
 
     if (movieDetails.length === 0) {
+      console.log("No valid movie details found")
       return NextResponse.json({ recommendations: [] })
     }
 
@@ -93,12 +113,14 @@ export async function GET(request: Request) {
     const prompt = `Based on these movies that the user has in their watchlists: ${movieDetails
       .map((movie) => movie.title)
       .join(", ")}, recommend 3 similar movies that the user might enjoy. For each movie, provide a one-sentence explanation of why they would like it based on their viewing history. Focus on recommending movies that are similar in genre, style, or theme to the ones they've already chosen to watch.`
+    console.log("About to call OpenAI");
 
     // Get recommendations from OpenAI
     const completion = await openai.chat.completions.create({
       messages: [{ role: "user", content: prompt }],
       model: "gpt-3.5-turbo",
     })
+    console.log("OpenAI call complete");
 
     const recommendations = completion.choices[0].message.content
       ?.split("\n")
@@ -107,6 +129,7 @@ export async function GET(request: Request) {
         const [title, reason] = line.split(" - ")
         return { title: title.replace(/^\d+\.\s*/, ""), reason }
       })
+    console.log("Parsed recommendations:", recommendations?.length)
 
     // Get movie details from TMDB for recommended movies
     const recommendedMovies = await Promise.all(
@@ -135,9 +158,11 @@ export async function GET(request: Request) {
         }
       }) || []
     ).then(results => results.filter(Boolean))
+    console.log("Final recommended movies:", recommendedMovies.length)
 
     return NextResponse.json({ recommendations: recommendedMovies })
   } catch (error) {
+    console.error("Error in recommendations API:", error)
     return NextResponse.json(
       { error: "Failed to fetch recommendations" },
       { status: 500 }
