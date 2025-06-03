@@ -79,6 +79,7 @@ export async function GET(request: Request) {
       .filter(Boolean)
     console.log("Filtered movie IDs:", movieIds)
 
+    // Edge case: 0 movies
     if (movieIds.length === 0) {
       console.log("No movies found in watchlists")
       return NextResponse.json({ recommendations: [] })
@@ -105,10 +106,14 @@ export async function GET(request: Request) {
       return NextResponse.json({ recommendations: [] })
     }
 
-    // Create a prompt for OpenRouter
-    const prompt = `Here are some movies and shows currently on my watchlists: ${movieDetails
-      .map((movie) => movie.title)
-      .join(", ")}. Based on these, recommend 3 similar movies or shows I might enjoy. For each, write a one-sentence informal recommendation directed to me (second person, e.g., 'You'll love this because...'). Make it sound like a friend giving advice, and be specific about why each is a good fit based on my list.`
+    // Prepare prompt and context
+    const titles = movieDetails.map((movie) => movie.title)
+    let prompt = ""
+    if (titles.length <= 3) {
+      prompt = `I only have these in my watchlist: ${titles.join(", ")}. Recommend 3 new movies or shows I haven't seen yet, and don't repeat any from my list. For each, provide the exact title, the IMDb ID (if available), and a one-sentence informal recommendation directed to me (second person, e.g., 'You'll love this because...'). Format each as:\nTitle: ...\nIMDb: ...\nBlurb: ...`;
+    } else {
+      prompt = `Here are some movies and shows currently on my watchlists: ${titles.join(", ")}. Based on these, recommend 3 similar movies or shows I might enjoy. For each, provide the exact title, the IMDb ID (if available), and a one-sentence informal recommendation directed to me (second person, e.g., 'You'll love this because...'). Format each as:\nTitle: ...\nIMDb: ...\nBlurb: ...`;
+    }
     console.log("About to call OpenRouter");
 
     // Get recommendations from OpenRouter
@@ -131,26 +136,47 @@ export async function GET(request: Request) {
     const openrouterData = await openrouterRes.json();
     console.log("OpenRouter call complete");
 
-    const recommendations = openrouterData.choices?.[0]?.message?.content
-      ?.split("\n")
-      .filter((line: string) => line.trim())
-      .map((line: string) => {
-        const [title, reason] = line.split(" - ")
-        return { title: title.replace(/^\d+\.\s*/, ""), reason }
-      })
-    console.log("Parsed recommendations:", recommendations?.length)
+    // Parse recommendations from AI response
+    const recsRaw = openrouterData.choices?.[0]?.message?.content || ""
+    const recs = recsRaw.split(/\n(?=Title: )/).map((block) => {
+      const titleMatch = block.match(/Title: (.*)/)
+      const imdbMatch = block.match(/IMDb: (tt\d+)/)
+      const blurbMatch = block.match(/Blurb: (.*)/)
+      return {
+        title: titleMatch ? titleMatch[1].trim() : "",
+        imdb: imdbMatch ? imdbMatch[1].trim() : "",
+        reason: blurbMatch ? blurbMatch[1].trim() : "",
+      }
+    }).filter((rec) => rec.title && rec.reason)
+    console.log("Parsed recommendations:", recs)
 
-    // Get movie details from TMDB for recommended movies
+    // Filter out any recommendations already in the user's watchlist
+    const userTitles = new Set(titles.map(t => t.toLowerCase()))
+    const filteredRecs = recs.filter(rec => !userTitles.has(rec.title.toLowerCase()))
+
+    // Get movie details from TMDB using IMDb ID if available, otherwise fallback to search
     const recommendedMovies = await Promise.all(
-      recommendations?.map(async (rec: any) => {
+      filteredRecs.map(async (rec) => {
         try {
-          const response = await fetch(
-            `${TMDB_BASE_URL}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(
-              rec.title
-            )}`
-          )
-          const data = await response.json()
-          const movie = data.results[0]
+          let movie = null
+          if (rec.imdb) {
+            // Try to find by IMDb ID
+            const response = await fetch(
+              `${TMDB_BASE_URL}/find/${rec.imdb}?api_key=${TMDB_API_KEY}&external_source=imdb_id`
+            )
+            const data = await response.json()
+            movie = data.movie_results?.[0] || null
+          }
+          if (!movie) {
+            // Fallback to search by title
+            const response = await fetch(
+              `${TMDB_BASE_URL}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(
+                rec.title
+              )}`
+            )
+            const data = await response.json()
+            movie = data.results?.[0] || null
+          }
           if (!movie) {
             return null
           }
@@ -165,7 +191,7 @@ export async function GET(request: Request) {
         } catch (error) {
           return null
         }
-      }) || []
+      })
     ).then(results => results.filter(Boolean))
     console.log("Final recommended movies:", recommendedMovies.length)
 
