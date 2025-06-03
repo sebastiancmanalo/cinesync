@@ -106,9 +106,9 @@ export async function GET(request: Request) {
     }
 
     // Create a prompt for OpenRouter
-    const prompt = `Based on these movies that the user has in their watchlists: ${movieDetails
+    const prompt = `Here are some movies and shows currently on my watchlists: ${movieDetails
       .map((movie) => movie.title)
-      .join(", ")}, recommend 3 similar movies that the user might enjoy. For each movie, provide a one-sentence explanation of why they would like it based on their viewing history. Focus on recommending movies that are similar in genre, style, or theme to the ones they've already chosen to watch.`
+      .join(", ")}. Based on these, recommend 3 similar movies or shows I might enjoy. For each, write a one-sentence informal recommendation directed to me (second person, e.g., 'You'll love this because...'). Make it sound like a friend giving advice, and be specific about why each is a good fit based on my list.`
     console.log("About to call OpenRouter");
 
     // Get recommendations from OpenRouter

@@ -48,6 +48,7 @@ export default function DashboardPage() {
   const router = useRouter()
   const [recommendations, setRecommendations] = useState<Movie[]>([])
   const [recommendationsLoading, setRecommendationsLoading] = useState(true)
+  const [expandedRec, setExpandedRec] = useState<{ [id: number]: boolean }>({})
 
   useEffect(() => {
     if (user) {
@@ -574,21 +575,38 @@ export default function DashboardPage() {
                     </div>
                   ) : recommendations.length > 0 ? (
                     <div className="space-y-4">
-                      {recommendations.map((movie) => (
-                        <div key={movie.id} className="flex gap-4 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
-                          <div className="w-20 h-30 flex-shrink-0">
-                            <img
-                              src={`https://image.tmdb.org/t/p/w200${movie.poster_path}`}
-                              alt={movie.title}
-                              className="w-full h-full object-cover rounded"
-                            />
+                      {recommendations.map((movie) => {
+                        const isExpanded = expandedRec[movie.id]
+                        const shouldTruncate = movie.reason && movie.reason.length > 100
+                        const displayText = isExpanded || !shouldTruncate
+                          ? movie.reason
+                          : movie.reason.slice(0, 100) + "..."
+                        return (
+                          <div key={movie.id} className="flex gap-4 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+                            <div className="w-20 h-30 flex-shrink-0">
+                              <img
+                                src={`https://image.tmdb.org/t/p/w200${movie.poster_path}`}
+                                alt={movie.title}
+                                className="w-full h-full object-cover rounded"
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-medium text-gray-900 truncate">{movie.title}</h3>
+                              <p className="text-sm text-gray-600">
+                                {displayText}
+                                {shouldTruncate && (
+                                  <button
+                                    className="ml-2 text-blue-600 hover:underline text-xs"
+                                    onClick={() => setExpandedRec((prev) => ({ ...prev, [movie.id]: !isExpanded }))}
+                                  >
+                                    {isExpanded ? "Show less" : "Read more"}
+                                  </button>
+                                )}
+                              </p>
+                            </div>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-medium text-gray-900 truncate">{movie.title}</h3>
-                            <p className="text-sm text-gray-600 line-clamp-2">{movie.reason}</p>
-                          </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   ) : (
                     <div className="text-center py-6">
