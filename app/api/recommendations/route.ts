@@ -112,9 +112,9 @@ export async function GET(request: Request) {
       .filter((title): title is string => typeof title === 'string' && !!title)
     let prompt = ""
     if (titles.length <= 3) {
-      prompt = `I only have these in my watchlist: ${titles.join(", ")}. Recommend 3 new movies or shows I haven't seen yet, and don't repeat any from my list. For each, provide the exact title, the IMDb ID (if available), and a one-sentence informal recommendation directed to me (second person, e.g., 'You'll love this because...'). Format each as:\nTitle: ...\nIMDb: ...\nBlurb: ...`;
+      prompt = `I only have these in my watchlist: ${titles.join(", ")}. Recommend 3 new movies or shows I haven't seen yet, and don't repeat any from my list. For each, provide the exact title, the IMDb ID (if available), a comma-separated list of which of my watchlist movies inspired the recommendation (as 'BasedOn'), and a one-sentence informal recommendation directed to me (second person, e.g., 'You'll love this because...'). Format each as:\nTitle: ...\nIMDb: ...\nBasedOn: ...\nBlurb: ...`;
     } else {
-      prompt = `Here are some movies and shows currently on my watchlists: ${titles.join(", ")}. Based on these, recommend 3 similar movies or shows I might enjoy. For each, provide the exact title, the IMDb ID (if available), and a one-sentence informal recommendation directed to me (second person, e.g., 'You'll love this because...'). Format each as:\nTitle: ...\nIMDb: ...\nBlurb: ...`;
+      prompt = `Here are some movies and shows currently on my watchlists: ${titles.join(", ")}. Based on these, recommend 3 similar movies or shows I might enjoy. For each, provide the exact title, the IMDb ID (if available), a comma-separated list of which of my watchlist movies inspired the recommendation (as 'BasedOn'), and a one-sentence informal recommendation directed to me (second person, e.g., 'You'll love this because...'). Format each as:\nTitle: ...\nIMDb: ...\nBasedOn: ...\nBlurb: ...`;
     }
     console.log("About to call OpenRouter");
 
@@ -140,13 +140,15 @@ export async function GET(request: Request) {
 
     // Parse recommendations from AI response
     const recsRaw = openrouterData.choices?.[0]?.message?.content || ""
-    const recs = recsRaw.split(/\n(?=Title: )/).map((block) => {
+    const recs = recsRaw.split(/\n(?=Title: )/).map((block: string) => {
       const titleMatch = block.match(/Title: (.*)/)
       const imdbMatch = block.match(/IMDb: (tt\d+)/)
+      const basedOnMatch = block.match(/BasedOn: (.*)/)
       const blurbMatch = block.match(/Blurb: (.*)/)
       return {
         title: titleMatch ? titleMatch[1].trim() : "",
         imdb: imdbMatch ? imdbMatch[1].trim() : "",
+        basedOn: basedOnMatch ? basedOnMatch[1].split(",").map(s => s.trim()).filter(Boolean) : [],
         reason: blurbMatch ? blurbMatch[1].trim() : "",
       }
     }).filter((rec) => rec.title && rec.reason)
@@ -154,7 +156,7 @@ export async function GET(request: Request) {
 
     // Filter out any recommendations already in the user's watchlist
     const userTitles = new Set(titles.map(t => t.toLowerCase()))
-    const filteredRecs = recs.filter(rec => !userTitles.has(rec.title.toLowerCase()))
+    const filteredRecs = recs.filter((rec) => !userTitles.has(rec.title.toLowerCase()))
 
     // Get movie details from TMDB using IMDb ID if available, otherwise fallback to search
     const recommendedMovies = await Promise.all(
@@ -189,6 +191,7 @@ export async function GET(request: Request) {
             poster_path: movie.poster_path,
             vote_average: movie.vote_average,
             reason: rec.reason,
+            basedOn: rec.basedOn,
           }
         } catch (error) {
           return null
