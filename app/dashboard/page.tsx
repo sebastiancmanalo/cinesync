@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useRouter } from "next/navigation"
+import { UserMenu } from "@/components/user-menu"
 
 interface WatchlistWithDetails extends Watchlist {
   watchlist_items: WatchlistItem[]
@@ -299,10 +300,6 @@ export default function DashboardPage() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="bg-white/95">
-                    <DropdownMenuItem onClick={signOut} className="text-gray-700 hover:text-gray-900 hover:bg-gray-100">
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Sign Out
-                    </DropdownMenuItem>
                     <DropdownMenuItem
                       className="text-red-600 hover:text-red-700 hover:bg-red-50"
                       onClick={() => {
@@ -316,12 +313,7 @@ export default function DashboardPage() {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Avatar className="cursor-pointer">
-                  <AvatarImage src={user?.user_metadata?.avatar_url || "/placeholder.svg"} />
-                  <AvatarFallback>
-                    {user?.user_metadata?.full_name?.charAt(0) || user?.email?.charAt(0) || "U"}
-                  </AvatarFallback>
-                </Avatar>
+                <UserMenu />
               </div>
             </div>
           </div>

@@ -49,6 +49,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format } from "date-fns"
+import { UserMenu } from "@/components/user-menu"
 
 interface WatchlistWithDetails extends Watchlist {
   watchlist_items: (WatchlistItem & {
@@ -595,22 +596,7 @@ export default function WatchlistPage() {
                     Manage Members
                   </Button>
                 </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Avatar className="cursor-pointer">
-                      <AvatarImage src={user?.user_metadata?.avatar_url || "/placeholder.svg"} />
-                      <AvatarFallback>
-                        {user?.user_metadata?.full_name?.charAt(0) || user?.email?.charAt(0) || "U"}
-                      </AvatarFallback>
-                    </Avatar>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="bg-white/95">
-                    <DropdownMenuItem onClick={signOut}>
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Sign Out
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <UserMenu />
               </div>
             </div>
           </div>
