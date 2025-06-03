@@ -136,7 +136,7 @@ export async function GET(request: Request) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'openai/gpt-3.5-turbo',
+        model: 'perplexity/sonar',
         messages: [{ role: 'user', content: prompt }],
       })
     });
@@ -149,8 +149,14 @@ export async function GET(request: Request) {
     console.log("OpenRouter call complete");
 
     // Parse recommendations from AI response
+    interface Rec {
+      title: string;
+      imdb: string;
+      basedOn: string[];
+      reason: string;
+    }
     const recsRaw = openrouterData.choices?.[0]?.message?.content || ""
-    const recs = recsRaw.split(/\n(?=Title: )/).map((block: string) => {
+    const recs: Rec[] = recsRaw.split(/\n(?=Title: )/).map((block: string): Rec => {
       const titleMatch = block.match(/Title: (.*)/)
       const imdbMatch = block.match(/IMDb: (tt\d+)/)
       const basedOnMatch = block.match(/BasedOn: (.*)/)
@@ -161,16 +167,16 @@ export async function GET(request: Request) {
         basedOn: basedOnMatch ? basedOnMatch[1].split(",").map(s => s.trim()).filter(Boolean) : [],
         reason: blurbMatch ? blurbMatch[1].trim() : "",
       }
-    }).filter((rec) => rec.title && rec.reason)
+    }).filter((rec: Rec) => rec.title && rec.reason)
     console.log("Parsed recommendations:", recs)
 
     // Filter out any recommendations already in the user's watchlist
     const userTitles = new Set(movieMeta.map(t => t.toLowerCase()))
-    const filteredRecs = recs.filter((rec) => !userTitles.has(rec.title.toLowerCase()))
+    const filteredRecs = recs.filter((rec: Rec) => !userTitles.has(rec.title.toLowerCase()))
 
     // Get movie details from TMDB using IMDb ID if available, otherwise fallback to search
     const recommendedMovies = await Promise.all(
-      filteredRecs.map(async (rec) => {
+      filteredRecs.map(async (rec: Rec) => {
         try {
           let movie = null
           if (rec.imdb) {
