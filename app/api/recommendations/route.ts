@@ -107,7 +107,9 @@ export async function GET(request: Request) {
     }
 
     // Prepare prompt and context
-    const titles = movieDetails.map((movie) => movie.title)
+    const titles = movieDetails
+      .map((movie) => movie.title)
+      .filter((title): title is string => typeof title === 'string' && !!title)
     let prompt = ""
     if (titles.length <= 3) {
       prompt = `I only have these in my watchlist: ${titles.join(", ")}. Recommend 3 new movies or shows I haven't seen yet, and don't repeat any from my list. For each, provide the exact title, the IMDb ID (if available), and a one-sentence informal recommendation directed to me (second person, e.g., 'You'll love this because...'). Format each as:\nTitle: ...\nIMDb: ...\nBlurb: ...`;
