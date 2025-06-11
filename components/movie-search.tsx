@@ -13,6 +13,7 @@ import { useDebounce } from "@/hooks/use-debounce"
 import { addMediaToWatchlist } from "@/app/actions/watchlist-actions"
 import { getImageUrl, getMediaTitle, getMediaYear } from "@/lib/tmdb"
 import type { TMDBSearchResult } from "@/lib/tmdb"
+import { useRouter } from "next/navigation"
 
 interface MovieSearchProps {
   watchlistId: string
@@ -27,6 +28,7 @@ export function MovieSearch({ watchlistId }: MovieSearchProps) {
   const [addedItems, setAddedItems] = useState<Set<string>>(new Set())
   const [error, setError] = useState("")
   const debouncedQuery = useDebounce(searchQuery, 300)
+  const router = useRouter()
 
   useEffect(() => {
     const searchMedia = async () => {
@@ -66,6 +68,9 @@ export function MovieSearch({ watchlistId }: MovieSearchProps) {
         setTimeout(() => {
           setSearchResults((prev) => prev.filter((item) => `${item.media_type}-${item.id}` !== itemKey))
         }, 1000)
+        
+        // Refresh the page data
+        router.refresh()
       } else {
         setError(result.error || "Failed to add item")
       }

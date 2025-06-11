@@ -169,9 +169,11 @@ export async function addMediaToWatchlist(watchlistId: string, tmdbId: number, m
       throw insertError
     }
 
-    // Revalidate the watchlist page
+    // Revalidate all relevant paths
     revalidatePath(`/watchlist/${watchlistId}`)
     revalidatePath("/dashboard")
+    revalidatePath("/api/recommendations")
+    revalidatePath("/api/what-to-watch")
 
     return { success: true, item: newItem }
   } catch (error: any) {
