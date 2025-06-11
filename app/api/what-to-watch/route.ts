@@ -1,9 +1,4 @@
 import { NextResponse } from 'next/server';
-import OpenAI from 'openai';
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 export async function POST(request: Request) {
   try {
@@ -17,12 +12,20 @@ export async function POST(request: Request) {
     const updatedMovies = await Promise.all(
       movies.map(async (movie) => {
         const prompt = `Give a playful reason to watch the movie "${movie.title}".`;
-        const response = await openai.chat.completions.create({
-          model: 'gpt-3.5-turbo',
-          messages: [{ role: 'user', content: prompt }],
-          max_tokens: 100,
+        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'perplexity/sonar-small-chat',
+            messages: [{ role: 'user', content: prompt }],
+            max_tokens: 100,
+          }),
         });
-        const reason = response.choices[0]?.message?.content || 'No reason provided.';
+        const data = await response.json();
+        const reason = data.choices?.[0]?.message?.content || 'No reason provided.';
         return { ...movie, reason };
       })
     );
