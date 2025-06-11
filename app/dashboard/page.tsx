@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useRouter } from "next/navigation"
-import { UserMenu } from "@/components/user-menu"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
 interface WatchlistWithDetails extends Watchlist {
   watchlist_items: WatchlistItem[]
@@ -25,6 +25,15 @@ interface WatchlistWithDetails extends Watchlist {
 }
 
 interface Movie {
+  id: number
+  title: string
+  overview: string
+  poster_path: string
+  vote_average: number
+  reason: string
+}
+
+interface WhatToWatchMovie {
   id: number
   title: string
   overview: string
@@ -50,6 +59,9 @@ export default function DashboardPage() {
   const [recommendations, setRecommendations] = useState<Movie[]>([])
   const [recommendationsLoading, setRecommendationsLoading] = useState(true)
   const [expandedRec, setExpandedRec] = useState<{ [id: number]: boolean }>({})
+  const [whatToWatchMovies, setWhatToWatchMovies] = useState<WhatToWatchMovie[]>([])
+  const [whatToWatchLoading, setWhatToWatchLoading] = useState(false)
+  const [whatToWatchMessage, setWhatToWatchMessage] = useState<string | null>(null)
 
   useEffect(() => {
     if (user) {
@@ -63,6 +75,14 @@ export default function DashboardPage() {
       fetchRecommendations()
     }
   }, [user?.id])
+
+  useEffect(() => {
+    // Always generate What to Watch when watchlists change
+    if (user && watchlists.length > 0) {
+      generateWhatToWatch()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchlists])
 
   const fetchWatchlists = async () => {
     try {
@@ -118,7 +138,7 @@ export default function DashboardPage() {
       // Filter to only show watchlists where user is a member or owner
       const userWatchlists = combinedWatchlists.filter(
         (watchlist) =>
-          watchlist.owner_id === user?.id || watchlist.watchlist_members.some((member) => member.user_id === user?.id),
+          watchlist.owner_id === user?.id || watchlist.watchlist_members.some((member: { user_id: string }) => member.user_id === user?.id),
       )
 
       console.log("User watchlists:", userWatchlists)
@@ -239,6 +259,50 @@ export default function DashboardPage() {
     return member?.role || null
   }
 
+  const getRandomMovies = (items: WatchlistItem[], count: number) => {
+    const shuffled = [...items].sort(() => 0.5 - Math.random())
+    return shuffled.slice(0, count)
+  }
+
+  const generateWhatToWatch = async () => {
+    setWhatToWatchLoading(true)
+    setWhatToWatchMessage(null)
+    // Find the first watchlist with at least 1 item
+    const listWithMovies = watchlists.find(wl => wl.watchlist_items && wl.watchlist_items.length > 0)
+    if (!listWithMovies) {
+      setWhatToWatchMovies([])
+      setWhatToWatchMessage("Add movies to your watchlist to get a playful suggestion!")
+      setWhatToWatchLoading(false)
+      return
+    }
+    const movies = getRandomMovies(listWithMovies.watchlist_items, 3)
+    if (movies.length === 0) {
+      setWhatToWatchMovies([])
+      setWhatToWatchMessage("Add movies to your watchlist to get a playful suggestion!")
+      setWhatToWatchLoading(false)
+      return
+    }
+    // Call API to get playful reasons
+    try {
+      const response = await fetch("/api/what-to-watch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ movies: movies.map(m => ({ title: m.title })) })
+      })
+      const data = await response.json()
+      if (data.movies) {
+        setWhatToWatchMovies(data.movies)
+      } else {
+        setWhatToWatchMovies([])
+        setWhatToWatchMessage("Couldn't generate a reason. Try again later!")
+      }
+    } catch (err) {
+      setWhatToWatchMovies([])
+      setWhatToWatchMessage("Couldn't generate a reason. Try again later!")
+    }
+    setWhatToWatchLoading(false)
+  }
+
   if (loading) {
     return (
       <ProtectedRoute>
@@ -293,35 +357,25 @@ export default function DashboardPage() {
                   <Plus className="w-4 h-4 mr-2" />
                   Create New List
                 </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <MoreHorizontal className="w-4 h-4 text-gray-600" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="bg-white/95">
-                    <DropdownMenuItem
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                      onClick={() => {
-                        if (confirm("Are you sure you want to delete all watchlists? This action cannot be undone.")) {
-                          watchlists.forEach(list => handleDeleteWatchlist(list.id))
-                        }
-                      }}
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete All Watchlists
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <UserMenu />
+                <Button
+                  onClick={() => router.push("/settings")}
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full hover:bg-gray-100"
+                >
+                  <Avatar className="w-8 h-8">
+                    <AvatarImage src={user?.user_metadata?.avatar_url || "/placeholder.svg"} />
+                    <AvatarFallback>
+                      {user?.user_metadata?.full_name?.charAt(0) || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
               </div>
             </div>
           </div>
         </header>
 
         <div className="container mx-auto px-4 py-8">
-          {/* Debug Info */}
-
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-8">
@@ -527,7 +581,6 @@ export default function DashboardPage() {
                 )}
               </div>
             </div>
-
             {/* Sidebar */}
             <div className="space-y-6">
               {/* Welcome Message */}
@@ -539,19 +592,18 @@ export default function DashboardPage() {
                   <CardDescription className="text-pink-600">Ready for your next movie night?</CardDescription>
                 </CardHeader>
               </Card>
-
-              {/* Recommendations */}
+              {/* What to Watch */}
               <Card className="bg-white/95">
                 <CardHeader>
                   <CardTitle className="bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">
-                    Recommended for You
+                    What to Watch
                   </CardTitle>
                   <CardDescription className="text-gray-600">
                     Based on your watchlist and viewing history
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {recommendationsLoading ? (
+                  {whatToWatchLoading ? (
                     <div className="space-y-4">
                       {[1, 2, 3].map((_, index) => (
                         <div key={index} className="flex gap-4 p-3 rounded-lg bg-gray-50">
@@ -565,49 +617,32 @@ export default function DashboardPage() {
                         </div>
                       ))}
                     </div>
-                  ) : recommendations.length > 0 ? (
+                  ) : whatToWatchMovies.length > 0 ? (
                     <div className="space-y-4">
-                      {recommendations.map((movie) => {
-                        const isExpanded = expandedRec[movie.id]
-                        const shouldTruncate = movie.reason && movie.reason.length > 100
-                        const displayText = isExpanded || !shouldTruncate
-                          ? movie.reason
-                          : movie.reason.slice(0, 100) + "..."
-                        return (
-                          <div key={movie.id} className="flex gap-4 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
-                            <div className="w-20 h-30 flex-shrink-0">
-                              <img
-                                src={`https://image.tmdb.org/t/p/w200${movie.poster_path}`}
-                                alt={movie.title}
-                                className="w-full h-full object-cover rounded"
-                              />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-medium text-gray-900 truncate">{movie.title}</h3>
-                              <p className="text-sm text-gray-600">
-                                {displayText}
-                                {shouldTruncate && (
-                                  <button
-                                    className="ml-2 text-blue-600 hover:underline text-xs"
-                                    onClick={() => setExpandedRec((prev) => ({ ...prev, [movie.id]: !isExpanded }))}
-                                  >
-                                    {isExpanded ? "Show less" : "Read more"}
-                                  </button>
-                                )}
-                              </p>
-                            </div>
+                      {whatToWatchMovies.map((movie) => (
+                        <div key={movie.id} className="flex gap-4 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+                          <div className="w-20 h-30 flex-shrink-0">
+                            <img
+                              src={`https://image.tmdb.org/t/p/w200${movie.poster_path}`}
+                              alt={movie.title}
+                              className="w-full h-full object-cover rounded"
+                            />
                           </div>
-                        )
-                      })}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium text-gray-900 truncate">{movie.title}</h3>
+                            <p className="text-sm text-gray-600">{movie.reason}</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <div className="text-center py-6">
-                      <p className="text-gray-600 mb-4">Add movies to your watchlist to get personalized recommendations</p>
+                      <p className="text-gray-600 mb-4">{whatToWatchMessage}</p>
                       <Button
-                        onClick={() => router.push("/lists/new")}
+                        onClick={generateWhatToWatch}
                         className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black"
                       >
-                        Create Your First List
+                        Try Again
                       </Button>
                     </div>
                   )}

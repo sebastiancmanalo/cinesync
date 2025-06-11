@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Film, LogOut } from "lucide-react"
+import { Film, LogOut, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useRouter } from "next/navigation"
@@ -24,6 +24,30 @@ export default function SettingsPage() {
     full_name: user?.user_metadata?.full_name || "",
     avatar_url: user?.user_metadata?.avatar_url || "",
   })
+  const [ownedWatchlists, setOwnedWatchlists] = useState<any[]>([])
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchOwnedWatchlists = async () => {
+      if (!user?.id) return
+      const { data, error } = await supabase
+        .from("watchlists")
+        .select("id, name, description")
+        .eq("owner_id", user.id)
+      if (!error) setOwnedWatchlists(data || [])
+    }
+    fetchOwnedWatchlists()
+  }, [user?.id])
+
+  const handleDeleteWatchlist = async (watchlistId: string) => {
+    if (!confirm("Are you sure you want to delete this watchlist? This action cannot be undone.")) return
+    setDeletingId(watchlistId)
+    const { error } = await supabase.from("watchlists").delete().eq("id", watchlistId)
+    if (!error) {
+      setOwnedWatchlists(ownedWatchlists.filter(w => w.id !== watchlistId))
+    }
+    setDeletingId(null)
+  }
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -71,11 +95,9 @@ export default function SettingsPage() {
 
         <div className="container mx-auto px-4 py-8">
           <div className="max-w-2xl mx-auto">
-            <Card className="bg-white/95">
-              <CardHeader>
-                <CardTitle className="bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">
-                  Settings
-                </CardTitle>
+            <Card className="bg-white/95 text-black">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-2xl font-bold">Settings</CardTitle>
                 <CardDescription>Manage your account settings and preferences</CardDescription>
               </CardHeader>
               <CardContent>
@@ -98,6 +120,7 @@ export default function SettingsPage() {
                           value={formData.avatar_url}
                           onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
                           placeholder="Enter avatar URL"
+                          className="bg-white text-black"
                         />
                       </div>
                     </div>
@@ -109,6 +132,7 @@ export default function SettingsPage() {
                         value={formData.full_name}
                         onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                         placeholder="Enter your full name"
+                        className="bg-white text-black"
                       />
                     </div>
 
@@ -121,6 +145,35 @@ export default function SettingsPage() {
                         className="bg-gray-50"
                       />
                     </div>
+                  </div>
+
+                  {/* Owned Watchlists Section */}
+                  <div className="mt-10">
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Your Watchlists</h3>
+                    {ownedWatchlists.length === 0 ? (
+                      <p className="text-gray-500">You don't own any watchlists yet.</p>
+                    ) : (
+                      <ul className="space-y-3">
+                        {ownedWatchlists.map((w) => (
+                          <li key={w.id} className="flex items-center justify-between bg-gray-50 rounded p-3">
+                            <div>
+                              <div className="font-semibold text-gray-900">{w.name}</div>
+                              {w.description && <div className="text-sm text-gray-600">{w.description}</div>}
+                            </div>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              disabled={deletingId === w.id}
+                              onClick={() => handleDeleteWatchlist(w.id)}
+                              className="ml-4"
+                            >
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              {deletingId === w.id ? "Deleting..." : "Delete"}
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
 
                   {error && (
@@ -140,14 +193,23 @@ export default function SettingsPage() {
                       type="button"
                       variant="outline"
                       onClick={() => router.push("/dashboard")}
+                      className="bg-white/95 text-gray-900 hover:bg-gray-100"
                     >
                       Back to Dashboard
                     </Button>
-                    <Button type="submit" disabled={loading}>
+                    <Button type="submit" disabled={loading} className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black">
                       {loading ? "Saving..." : "Save Changes"}
                     </Button>
                   </div>
                 </form>
+
+                {/* Sign Out Button */}
+                <div className="mt-10 flex justify-end">
+                  <Button variant="outline" onClick={signOut} className="bg-white/95 text-gray-900 hover:bg-gray-100">
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign Out
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>
