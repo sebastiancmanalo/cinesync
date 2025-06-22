@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Film, LogOut, Trash2 } from "lucide-react"
+import { Film, LogOut, Trash2, User, Mail, Camera, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useRouter } from "next/navigation"
@@ -76,98 +76,129 @@ export default function SettingsPage() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-background text-foreground">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200">
-          <div className="container mx-auto px-4 py-4">
+        <header className="bg-gradient-to-b from-black/80 to-transparent">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Link href="/" className="flex items-center gap-2">
-                  <Film className="w-8 h-8 text-yellow-400" />
-                  <span className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">
-                    WatchTogether
+                  <Film className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
+                  <span className="text-2xl sm:text-4xl font-logo tracking-wider">
+                    CineSync
                   </span>
                 </Link>
               </div>
+              <Button 
+                asChild 
+                variant="ghost" 
+                className="hover:bg-primary/20 hover:text-primary"
+              >
+                <Link href="/dashboard">
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back to Dashboard
+                </Link>
+              </Button>
             </div>
           </div>
         </header>
 
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-16">
           <div className="max-w-2xl mx-auto">
-            <Card className="bg-white/95 text-black">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-2xl font-bold">Settings</CardTitle>
-                <CardDescription>Manage your account settings and preferences</CardDescription>
+            <Card className="bg-background/50 backdrop-blur-sm border border-border/20 shadow-lg">
+              <CardHeader className="pb-6">
+                <CardTitle className="text-3xl sm:text-4xl font-heading text-primary">Settings</CardTitle>
+                <CardDescription className="text-lg font-sans text-muted-foreground">
+                  Manage your account settings and preferences
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleUpdateProfile} className="space-y-6">
+                <form onSubmit={handleUpdateProfile} className="space-y-8">
                   {/* Profile Section */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium text-gray-900">Profile</h3>
+                  <div className="space-y-6">
+                    <h3 className="text-2xl font-heading text-primary flex items-center gap-3">
+                      <User className="w-6 h-6" />
+                      Profile
+                    </h3>
                     
-                    <div className="flex items-center gap-4">
-                      <Avatar className="w-20 h-20">
+                    <div className="flex items-center gap-6">
+                      <Avatar className="w-24 h-24 border-2 border-primary/20">
                         <AvatarImage src={formData.avatar_url || "/placeholder.svg"} />
-                        <AvatarFallback>
+                        <AvatarFallback className="bg-primary/10 text-primary text-2xl font-heading">
                           {formData.full_name?.charAt(0) || user?.email?.charAt(0) || "U"}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
-                        <Label htmlFor="avatar_url">Avatar URL</Label>
+                        <Label htmlFor="avatar_url" className="text-sm font-sans text-muted-foreground mb-2 block">
+                          <Camera className="w-4 h-4 inline mr-2" />
+                          Avatar URL
+                        </Label>
                         <Input
                           id="avatar_url"
                           value={formData.avatar_url}
                           onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
                           placeholder="Enter avatar URL"
-                          className="bg-white text-black"
+                          className="bg-background/50 border-border/20 text-foreground placeholder:text-muted-foreground/50"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <Label htmlFor="full_name">Full Name</Label>
+                      <Label htmlFor="full_name" className="text-sm font-sans text-muted-foreground mb-2 block">
+                        <User className="w-4 h-4 inline mr-2" />
+                        Full Name
+                      </Label>
                       <Input
                         id="full_name"
                         value={formData.full_name}
                         onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                         placeholder="Enter your full name"
-                        className="bg-white text-black"
+                        className="bg-background/50 border-border/20 text-foreground placeholder:text-muted-foreground/50"
                       />
                     </div>
 
                     <div>
-                      <Label htmlFor="email">Email</Label>
+                      <Label htmlFor="email" className="text-sm font-sans text-muted-foreground mb-2 block">
+                        <Mail className="w-4 h-4 inline mr-2" />
+                        Email
+                      </Label>
                       <Input
                         id="email"
                         value={user?.email || ""}
                         disabled
-                        className="bg-gray-50"
+                        className="bg-muted/20 border-border/20 text-muted-foreground"
                       />
                     </div>
                   </div>
 
                   {/* Owned Watchlists Section */}
-                  <div className="mt-10">
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Your Watchlists</h3>
+                  <div className="mt-12">
+                    <h3 className="text-2xl font-heading text-primary mb-4 flex items-center gap-3">
+                      <Film className="w-6 h-6" />
+                      Your Watchlists
+                    </h3>
                     {ownedWatchlists.length === 0 ? (
-                      <p className="text-gray-500">You don't own any watchlists yet.</p>
+                      <div className="text-center py-8 px-6 border-2 border-border/20 rounded-lg bg-background/30">
+                        <Film className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-lg font-sans text-muted-foreground">You don't own any watchlists yet.</p>
+                        <p className="text-sm text-muted-foreground/70 mt-2">Create your first watchlist to get started!</p>
+                      </div>
                     ) : (
-                      <ul className="space-y-3">
+                      <ul className="space-y-4">
                         {ownedWatchlists.map((w) => (
-                          <li key={w.id} className="flex items-center justify-between bg-gray-50 rounded p-3">
+                          <li key={w.id} className="flex items-center justify-between bg-background/30 border border-border/20 rounded-lg p-4">
                             <div>
-                              <div className="font-semibold text-gray-900">{w.name}</div>
-                              {w.description && <div className="text-sm text-gray-600">{w.description}</div>}
+                              <div className="font-heading text-lg text-primary">{w.name}</div>
+                              {w.description && <div className="text-sm font-sans text-muted-foreground mt-1">{w.description}</div>}
                             </div>
                             <Button
                               variant="destructive"
                               size="sm"
                               disabled={deletingId === w.id}
                               onClick={() => handleDeleteWatchlist(w.id)}
-                              className="ml-4"
+                              className="ml-4 bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30"
                             >
-                              <Trash2 className="w-4 h-4 mr-1" />
+                              <Trash2 className="w-4 h-4 mr-2" />
                               {deletingId === w.id ? "Deleting..." : "Delete"}
                             </Button>
                           </li>
@@ -177,35 +208,44 @@ export default function SettingsPage() {
                   </div>
 
                   {error && (
-                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                      <p className="text-sm text-red-600">{error}</p>
+                    <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+                      <p className="text-sm font-sans text-red-400">{error}</p>
                     </div>
                   )}
 
                   {success && (
-                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                      <p className="text-sm text-green-600">{success}</p>
+                    <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+                      <p className="text-sm font-sans text-green-400">{success}</p>
                     </div>
                   )}
 
-                  <div className="flex justify-between">
+                  <div className="flex justify-between pt-6">
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="ghost"
                       onClick={() => router.push("/dashboard")}
-                      className="bg-white/95 text-gray-900 hover:bg-gray-100"
+                      className="hover:bg-primary/20 hover:text-primary"
                     >
+                      <ArrowLeft className="w-4 h-4 mr-2" />
                       Back to Dashboard
                     </Button>
-                    <Button type="submit" disabled={loading} className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black">
+                    <Button 
+                      type="submit" 
+                      disabled={loading} 
+                      className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black font-medium"
+                    >
                       {loading ? "Saving..." : "Save Changes"}
                     </Button>
                   </div>
                 </form>
 
                 {/* Sign Out Button */}
-                <div className="mt-10 flex justify-end">
-                  <Button variant="outline" onClick={signOut} className="bg-white/95 text-gray-900 hover:bg-gray-100">
+                <div className="mt-12 flex justify-end">
+                  <Button 
+                    variant="outline" 
+                    onClick={signOut} 
+                    className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/50"
+                  >
                     <LogOut className="w-4 h-4 mr-2" />
                     Sign Out
                   </Button>

@@ -1,161 +1,168 @@
-# WatchTogether
+# 🎬 CineSync
 
-> **Disclaimer:** _None of the features described below have been implemented yet. This project is currently in the planning or early setup phase._
+A modern, cinematic movie watchlist sharing app built with Next.js, Supabase, and TypeScript.
 
-A collaborative platform for creating and managing shared watchlists with friends, partners, or groups—complete with smart time estimation, streaming availability, and group voting.
+## ✨ Features
 
----
+- **🎭 Cinematic Design** - Beautiful dark theme with warm accents inspired by classic cinema
+- **📱 Responsive** - Works perfectly on desktop, tablet, and mobile
+- **👥 Social Sharing** - Share watchlists with friends and family
+- **🎬 Movie Management** - Add, remove, and mark movies as watched
+- **💬 Reviews & Ratings** - Rate and review movies with star ratings
+- **🔍 Smart Recommendations** - Get personalized movie suggestions
+- **⚡ Real-time Updates** - Live updates when data changes
+- **🔐 Secure Authentication** - Built-in user authentication with Supabase
 
-## 🚀 Overview
+## 🚀 Quick Start
 
-**WatchTogether** helps people coordinate what to watch together, track progress, and make group decisions—eliminating the hassle of fragmented lists and manual planning.
+### Prerequisites
 
----
+- Node.js 18+ 
+- pnpm (recommended) or npm
+- Supabase account
+- TMDB API key (optional, for movie data)
 
-## 🔧 Environment Variables
+### Installation
 
-To enable movie and TV show search functionality, you'll need to set up the following environment variables:
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/cinesync.git
+   cd cinesync
+   ```
 
-### Required for Supabase (Already configured)
-- `NEXT_PUBLIC_SUPABASE_URL` - Your Supabase project URL
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Your Supabase anonymous key
-- `SUPABASE_SERVICE_ROLE_KEY` - Your Supabase service role key
+2. **Install dependencies**
+   ```bash
+   pnpm install
+   # or
+   npm install
+   ```
 
-### Optional for TMDB Integration
-- `TMDB_API_KEY` - Your TMDB API key (get one at https://www.themoviedb.org/settings/api)
+3. **Set up environment variables**
+   Create a `.env.local` file in the root directory:
+   ```bash
+   # Supabase Configuration
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url_here
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 
-**Note:** The app will work without the TMDB API key by using mock data for demonstration purposes. To enable real movie/TV show search, sign up for a free TMDB API key and add it to your environment variables.
+   # TMDB API (for movie data)
+   NEXT_PUBLIC_TMDB_API_KEY=your_tmdb_api_key_here
 
----
+   # OpenRouter API (for AI recommendations - optional)
+   OPENROUTER_API_KEY=your_openrouter_api_key_here
+   ```
 
-## 📦 Features
+4. **Set up Supabase**
+   - Create a new Supabase project at [supabase.com](https://supabase.com)
+   - Get your project URL and anon key from Settings → API
+   - Run database migrations:
+     ```bash
+     supabase link --project-ref your_project_ref
+     supabase db push
+     ```
 
-### Core (MVP)
-- [x] Shared Lists: Create and manage watchlists with others (owner, editor, viewer roles)
-- [x] Auto Metadata Fetching: Pulls title, year, poster, runtime, description, and streaming info from APIs (TMDb, JustWatch)
-- [x] Time Estimation: Calculates total watch time for movies and TV series (customizable by season/episode)
-- [x] Smart Queue: Suggests what to watch next based on available time and filters (runtime, genre, platform, person-added)
-- [ ] Platform Aggregation: Shows where each title is available to stream; filter by shared subscriptions
-- [x] Notes & Voting: Add notes, emojis, comments, and group voting (thumbs-up/down or ratings)
-- [x] Progress Tracking: Mark items as watched/in progress; visual completion indicators
+5. **Start the development server**
+   ```bash
+   pnpm dev
+   # or
+   npm run dev
+   ```
 
-### Planned / In Progress
-- [ ] Calendar Sync: Add watch sessions to a shared calendar (Google Calendar integration)
-- [ ] Completion Estimation: Suggests what you can finish today, this weekend, etc.
-- [ ] Invite Flows: Share lists via invite link or username
-- [x] Responsive Mobile UX: Optimized for all devices
-- [ ] Analytics Dashboard: Usage tracking and engagement metrics
-
----
+6. **Open your browser**
+   Navigate to [http://localhost:3000](http://localhost:3000)
 
 ## 🛠️ Tech Stack
 
-- **Frontend:** Next.js 15, React, TailwindCSS
-- **Backend:** Next.js API Routes, Server Actions
-- **Database:** Supabase (PostgreSQL)
-- **Authentication:** Supabase Auth (Google OAuth)
-- **APIs:** TMDb (The Movie Database)
-- **Hosting:** Vercel
+- **Frontend**: Next.js 15, React 19, TypeScript
+- **Styling**: Tailwind CSS, shadcn/ui components
+- **Backend**: Supabase (PostgreSQL, Auth, Real-time)
+- **Database**: PostgreSQL with Row Level Security
+- **Deployment**: Vercel (recommended)
+- **Package Manager**: pnpm
+
+## 📁 Project Structure
+
+```
+cinesync/
+├── app/                    # Next.js app directory
+│   ├── api/               # API routes
+│   ├── dashboard/         # Dashboard pages
+│   ├── watchlist/         # Watchlist pages
+│   └── settings/          # Settings pages
+├── components/            # Reusable UI components
+├── contexts/              # React contexts
+├── hooks/                 # Custom React hooks
+├── lib/                   # Utility libraries
+├── supabase/              # Database migrations
+├── types/                 # TypeScript type definitions
+└── styles/                # Global styles
+```
+
+## 🎨 Design System
+
+CineSync uses a cinematic design system with:
+
+- **Colors**: Dark theme with warm amber/pink accents
+- **Typography**: Lora (body), Playfair Display (headings), Bebas Neue (logo)
+- **Components**: shadcn/ui with custom styling
+- **Animations**: Smooth transitions and hover effects
+
+## 🔧 Development
+
+### Available Scripts
+
+- `pnpm dev` - Start development server
+- `pnpm build` - Build for production
+- `pnpm start` - Start production server
+- `pnpm lint` - Run ESLint
+- `pnpm type-check` - Run TypeScript type checking
+
+### Database Migrations
+
+```bash
+# Create a new migration
+supabase migration new migration_name
+
+# Apply migrations
+supabase db push
+
+# Reset database
+supabase db reset
+```
+
+## 🚀 Deployment
+
+### Vercel (Recommended)
+
+1. Connect your GitHub repository to Vercel
+2. Add environment variables in Vercel dashboard
+3. Deploy automatically on push to main branch
+
+### Manual Deployment
+
+```bash
+pnpm build
+pnpm start
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [Supabase](https://supabase.com) for the amazing backend platform
+- [shadcn/ui](https://ui.shadcn.com) for the beautiful component library
+- [TMDB](https://www.themoviedb.org) for movie data
+- [Next.js](https://nextjs.org) for the incredible React framework
 
 ---
 
-## 📈 Progress & Milestones
-
-### Phase 1: MVP (Complete)
-- [x] Shared lists, search & add titles, metadata fetching, watch time calculation
-- [x] Mark as watched/in progress
-- [x] Modern UI with cinema theming and consistent design language
-- [x] User authentication with Google
-- [x] Gradient-based color scheme with yellow-to-pink theme
-- [x] Improved text contrast and readability
-- [x] Consistent button styles and hover states
-- [x] Enhanced comment box visibility
-
-### Phase 2: V1 Launch (In Progress)
-- [ ] Platform availability info
-- [x] Voting and smart sorting
-- [x] Invite flows and link-sharing
-- [x] Responsive mobile UX
-- [x] Share functionality via link or email
-- [x] Member management with role-based permissions
-- [x] Progress tracking with visual indicators
-
-### Phase 3: Growth & Polish (Upcoming)
-- [ ] Calendar sync
-- [ ] Reminder notifications
-- [ ] Performance improvements and caching
-- [ ] Analytics dashboard
-
-### Phase 4: Feedback & Expansion (Ongoing)
-- [ ] Gather user feedback
-- [ ] Add wishlist features (genre tagging, AI-based recommendations, integrations with Letterboxd/Trakt, etc.)
-
----
-
-## 📊 Success Metrics
-
-- Number of active shared lists
-- Daily/weekly active users
-- Average titles per list
-- % of titles marked "watched"
-- Average session time
-- % of users who invite others
-- Retention (7/30 days)
-- Qualitative feedback (ease of use, usefulness, NPS)
-
----
-
-## 🚀 Getting Started
-
-1. Clone the repository
-2. Install dependencies: `npm install`
-3. Set up your environment variables (see above)
-4. Run the development server: `npm run dev`
-5. Open [http://localhost:3000](http://localhost:3000) in your browser
-
----
-
-## 📝 Contributing
-
-1. Fork the repo and clone locally
-2. Install dependencies (`npm install`)
-3. Set up environment variables (see `.env.example`)
-4. Run the app locally (`npm run dev`)
-5. Open a PR with your changes
-
----
-
-## 📬 Contact & Feedback
-
-We welcome feedback and contributions! Please open an issue or reach out to the maintainers.
-
-# WatchTogether
-
-*Automatically synced with your [v0.dev](https://v0.dev) deployments*
-
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/sebastiancmanalos-projects/v0-watch-together)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/Uuy1Y2u5pYx)
-
-## Overview
-
-This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
-
-## Deployment
-
-Your project is live at:
-
-**[https://vercel.com/sebastiancmanalos-projects/v0-watch-together](https://vercel.com/sebastiancmanalos-projects/v0-watch-together)**
-
-## Build your app
-
-Continue building your app on:
-
-**[https://v0.dev/chat/projects/Uuy1Y2u5pYx](https://v0.dev/chat/projects/Uuy1Y2u5pYx)**
-
-## How It Works
-
-1. Create and modify your project using [v0.dev](https://v0.dev)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+Made with ❤️ for movie lovers everywhere

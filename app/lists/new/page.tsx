@@ -1,164 +1,143 @@
 "use client"
 
-import type React from "react"
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { useAuth } from "@/contexts/auth-context"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { ArrowLeft, Film } from "lucide-react"
-import Link from "next/link"
-import { ProtectedRoute } from "@/components/protected-route"
-import { createWatchlist } from "@/app/actions/watchlist-actions"
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Film, ArrowLeft } from 'lucide-react'
+import Link from 'next/link'
+import { ProtectedRoute } from '@/components/protected-route'
 
-export default function NewListPage() {
-  const { user } = useAuth()
+export default function NewWatchlistPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
+  const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-    isPublic: false,
+    name: '',
+    description: ''
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!user) return
-
     setLoading(true)
-    setError("")
+    setError(null)
 
     try {
-      const result = await createWatchlist({
-        name: formData.name,
-        description: formData.description,
-        isPublic: formData.isPublic,
+      const response = await fetch('/api/watchlists', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          description: formData.description || ''
+        })
       })
 
-      if (result.success) {
-        router.push(`/watchlist/${result.watchlistId}`)
-      } else {
-        setError(result.error || "Failed to create watchlist")
+      if (!response.ok) {
+        throw new Error('Failed to create watchlist')
       }
-    } catch (err: any) {
-      setError(err.message || "Failed to create watchlist")
+
+      const watchlist = await response.json()
+      router.push(`/watchlist/${watchlist.id}`)
+    } catch (error) {
+      console.error('Error creating watchlist:', error)
+      setError(error instanceof Error ? error.message : 'Failed to create watchlist')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleInputChange = (field: string, value: string | boolean) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
-
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-background text-foreground">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200">
-          <div className="container mx-auto px-4 py-4">
+        <header className="bg-gradient-to-b from-black/80 to-transparent">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center justify-between">
-              <Link href="/" className="flex items-center gap-2">
-                <Film className="w-8 h-8 text-yellow-400" />
-                <span className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">
-                  WatchTogether
-                </span>
-              </Link>
-
-              <div className="flex items-center gap-4">
-                <Link href="/dashboard">
-                  <Button variant="ghost" size="icon">
-                    <ArrowLeft className="w-4 h-4" />
-                  </Button>
+              <div className="flex items-center gap-2">
+                <Link href="/" className="flex items-center gap-2">
+                  <Film className="w-8 h-8 text-primary" />
+                  <span className="text-4xl font-logo tracking-wider">
+                    CineSync
+                  </span>
                 </Link>
               </div>
+              <Button asChild variant="ghost" className="hover:bg-primary/20 hover:text-primary">
+                <Link href="/dashboard">
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back to Dashboard
+                </Link>
+              </Button>
             </div>
           </div>
         </header>
 
-        <div className="container mx-auto px-4 py-8 max-w-2xl">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-900">Create New Watchlist</h1>
-            <p className="text-gray-600 mt-2">
-              Create a new watchlist to track movies and TV shows with friends and family
-            </p>
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="max-w-2xl mx-auto">
+            <Card className="bg-secondary/20 border-2 border-border/20">
+              <CardHeader>
+                <CardTitle className="text-3xl font-heading text-primary">Create New Watchlist</CardTitle>
+                <CardDescription className="text-lg font-sans">
+                  Start a new watchlist to organize your favorite movies and TV shows
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div>
+                    <Label htmlFor="name" className="text-lg font-semibold">Watchlist Name *</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="Enter watchlist name"
+                      required
+                      className="bg-background border-2 border-border/20 focus:border-primary text-foreground text-lg py-3"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="description" className="text-lg font-semibold">Description (Optional)</Label>
+                    <Textarea
+                      id="description"
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      placeholder="Describe your watchlist..."
+                      rows={4}
+                      className="bg-background border-2 border-border/20 focus:border-primary text-foreground text-lg"
+                    />
+                  </div>
+
+                  {error && (
+                    <div className="p-4 bg-red-500/20 border-2 border-red-500/30 rounded-lg">
+                      <p className="text-red-200 font-semibold">{error}</p>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-4 pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => router.push('/dashboard')}
+                      className="bg-secondary/20 border-2 border-border/20 hover:bg-secondary/40 text-foreground font-semibold px-8 py-3"
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      type="submit" 
+                      disabled={loading || !formData.name.trim()} 
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-8 py-3 text-lg"
+                    >
+                      {loading ? 'Creating...' : 'Create Watchlist'}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
           </div>
-
-          <Card className="bg-white">
-            <CardHeader>
-              <CardTitle className="text-gray-900">Watchlist Details</CardTitle>
-              <CardDescription className="text-gray-600">
-                Give your watchlist a name and description to help others understand what it's for
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {error && (
-                  <Alert variant="destructive">
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
-
-                <div className="space-y-2">
-                  <Label htmlFor="name" className="text-gray-900">Name *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange("name", e.target.value)}
-                    placeholder="e.g., Movie Night Picks, Must-Watch Series"
-                    required
-                    className="bg-white text-gray-900 placeholder:text-gray-500 border-gray-200 focus:border-gray-300"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="description" className="text-gray-900">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => handleInputChange("description", e.target.value)}
-                    placeholder="What kind of movies or shows will this list contain?"
-                    rows={3}
-                    className="bg-white text-gray-900 placeholder:text-gray-500 border-gray-200 focus:border-gray-300"
-                  />
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="public"
-                    checked={formData.isPublic}
-                    onCheckedChange={(checked) => handleInputChange("isPublic", checked)}
-                  />
-                  <Label htmlFor="public" className="text-gray-900">
-                    Make this watchlist public
-                  </Label>
-                </div>
-                <p className="text-sm text-gray-600">
-                  Public watchlists can be discovered by other users. Private watchlists are only visible to invited
-                  members.
-                </p>
-
-                <div className="flex gap-4 pt-4">
-                  <Button
-                    type="submit"
-                    disabled={loading || !formData.name.trim()}
-                    className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black font-medium"
-                  >
-                    {loading ? "Creating..." : "Create Watchlist"}
-                  </Button>
-                  <Button type="button" variant="outline" asChild className="bg-white text-gray-900 hover:bg-gray-100 border-gray-200">
-                    <Link href="/dashboard">Cancel</Link>
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </ProtectedRoute>

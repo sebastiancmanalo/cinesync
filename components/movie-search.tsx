@@ -10,7 +10,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Search, Plus, Loader2, CheckCircle } from "lucide-react"
 import Image from "next/image"
 import { useDebounce } from "@/hooks/use-debounce"
-import { addMediaToWatchlist } from "@/app/actions/watchlist-actions"
 import { getImageUrl, getMediaTitle, getMediaYear } from "@/lib/tmdb"
 import type { TMDBSearchResult } from "@/lib/tmdb"
 import { useRouter } from "next/navigation"
@@ -60,9 +59,18 @@ export function MovieSearch({ watchlistId }: MovieSearchProps) {
     setError("")
 
     try {
-      const result = await addMediaToWatchlist(watchlistId, movie.id, movie.media_type)
+      const response = await fetch(`/api/watchlists/${watchlistId}/items`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          movieId: movie.id,
+          mediaType: movie.media_type
+        })
+      })
 
-      if (result.success) {
+      if (response.ok) {
         setAddedItems((prev) => new Set([...prev, itemKey]))
         // Remove from search results after a delay
         setTimeout(() => {
@@ -72,7 +80,8 @@ export function MovieSearch({ watchlistId }: MovieSearchProps) {
         // Refresh the page data
         router.refresh()
       } else {
-        setError(result.error || "Failed to add item")
+        const errorData = await response.json()
+        setError(errorData.error || "Failed to add item")
       }
     } catch (error: any) {
       setError(error.message || "Failed to add item")
