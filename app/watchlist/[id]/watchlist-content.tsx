@@ -1,1059 +1,424 @@
-'use client'
+"use client";
 
-import { useEffect, useState, useRef } from 'react'
-import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { ArrowLeft, Film, CheckCircle, Circle, Trash2, Settings, Star, Users2, ListVideo, User, Calendar, Eye, MessageCircle, ChevronDown, ChevronUp, MoreVertical, Plus, X, Share2, Edit3, Copy } from 'lucide-react'
-import Link from 'next/link'
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { MovieSearch } from "@/components/movie-search";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { InviteUserDialog } from "@/components/invite-user-dialog";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/components/ui/use-toast";
+import type { TMDBSearchResult } from "@/lib/tmdb";
+import { getMediaTitle } from "@/lib/tmdb";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { PlusCircle, Users2 } from "lucide-react";
 
-interface Review {
-  id: string
-  user_id: string
-  user_name: string
-  rating: number
-  comment: string
-  created_at: string
+// Type definitions matching the API response
+interface Profile {
+  id: string;
+  full_name: string;
+  avatar_url: string;
 }
 
 interface WatchlistItem {
-  id: number
-  movie_id: number
-  title: string
-  overview: string
-  poster_path?: string
-  backdrop_path?: string
-  vote_average: number
-  added_at: string
-  added_by: {
-    id: string
-    name: string
-    email: string
-  }
-  watched: boolean
-  watched_at: string | null
-  watched_by: {
-    id: string
-    name: string
-    email: string
-  } | null
-  reviews: Review[]
+  id: string;
+  movie_id: number;
+  title: string;
+  overview: string;
+  poster_path: string;
+  media_type: "movie" | "tv";
+  profiles: Profile;
+  watched: boolean;
+  watched_at?: string;
+  review_text?: string;
+  review_rating?: number;
 }
 
 interface WatchlistMember {
-  id: string
-  email: string
-  full_name: string
-  avatar_url: string | null
-  role: 'owner' | 'member'
+  role: "owner" | "member" | "editor";
+  profiles: Profile;
 }
 
 interface Watchlist {
-  id: string
-  name: string
-  description: string
-  owner_id: string
-  created_at: string
-  items: WatchlistItem[]
-  members: WatchlistMember[]
+  id: string;
+  name: string;
+  description: string;
+  owner_id: string;
+  created_at?: string;
+  watchlist_items: WatchlistItem[];
+  watchlist_members: WatchlistMember[];
 }
 
 interface WatchlistContentProps {
-  watchlistId: string
+  initialWatchlist: Watchlist;
 }
 
-interface ContextMenuProps {
-  x: number
-  y: number
-  onClose: () => void
-  onRemove: () => void
-  onEdit?: () => void
-  itemType: 'movie' | 'review'
-  itemName: string
-}
+export function WatchlistContent({ initialWatchlist: watchlist }: WatchlistContentProps) {
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const { user } = useAuth();
+  const router = useRouter();
+  const { toast } = useToast();
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewTarget, setReviewTarget] = useState<WatchlistItem | null>(null);
+  const [reviewText, setReviewText] = useState("");
+  const [reviewRating, setReviewRating] = useState(0);
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewsByItem, setReviewsByItem] = useState<Record<string, any[]>>({});
+  const [loadingReviews, setLoadingReviews] = useState<Record<string, boolean>>({});
+  const [openReviews, setOpenReviews] = useState<Record<string, boolean>>({});
 
-const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/"
+  const isOwner = user?.id === watchlist.owner_id;
+  const isEditor = watchlist.watchlist_members.some(
+    (member) => member.profiles && member.profiles.id === user?.id && ["owner", "editor"].includes(member.role)
+  );
 
-const ContextMenu = ({ x, y, onClose, onRemove, onEdit, itemType, itemName }: ContextMenuProps) => {
-  const menuRef = useRef<HTMLDivElement>(null)
+  const refreshWatchlist = () => {
+    router.refresh();
+  };
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        onClose()
-      }
-    }
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose()
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    document.addEventListener('keydown', handleEscape)
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleEscape)
-    }
-  }, [onClose])
-
-  return (
-    <div
-      ref={menuRef}
-      className="fixed z-50 bg-background/95 backdrop-blur-sm border border-border/50 rounded-lg shadow-xl p-1 min-w-[160px] animate-in fade-in-0 zoom-in-95 duration-100"
-      style={{
-        left: Math.min(x, window.innerWidth - 180),
-        top: Math.min(y, window.innerHeight - 80),
-      }}
-    >
-      {onEdit && (
-        <button
-          onClick={onEdit}
-          className="w-full flex items-center gap-3 px-3 py-2 text-sm text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 rounded-md transition-colors duration-150"
-        >
-          <Edit3 className="w-4 h-4" />
-          Edit {itemType === 'movie' ? 'Movie' : 'Review'}
-        </button>
-      )}
-      <button
-        onClick={onRemove}
-        className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-md transition-colors duration-150"
-      >
-        <Trash2 className="w-4 h-4" />
-        Remove {itemType === 'movie' ? 'Movie' : 'Review'}
-      </button>
-    </div>
-  )
-}
-
-export function WatchlistContent({ watchlistId }: WatchlistContentProps) {
-  const router = useRouter()
-  const [watchlist, setWatchlist] = useState<Watchlist | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [expandedReviews, setExpandedReviews] = useState<Set<number>>(new Set())
-  const [contextMenu, setContextMenu] = useState<{
-    x: number
-    y: number
-    itemType: 'movie' | 'review'
-    itemId: number | string
-    itemName: string
-  } | null>(null)
-  const [isNavigating, setIsNavigating] = useState(false)
-  
-  // Add movie state
-  const [showAddMovie, setShowAddMovie] = useState(false)
-  const [newMovieTitle, setNewMovieTitle] = useState('')
-  const [addingMovie, setAddingMovie] = useState(false)
-  
-  // Add review state
-  const [showAddReview, setShowAddReview] = useState<number | null>(null)
-  const [newReviewRating, setNewReviewRating] = useState(5)
-  const [newReviewComment, setNewReviewComment] = useState('')
-  const [addingReview, setAddingReview] = useState(false)
-
-  // Edit review state
-  const [editingReview, setEditingReview] = useState<{
-    itemId: number
-    reviewId: string
-    rating: number
-    comment: string
-  } | null>(null)
-
-  // Sharing state
-  const [showShareModal, setShowShareModal] = useState(false)
-  const [shareEmail, setShareEmail] = useState('')
-  const [sharing, setSharing] = useState(false)
-  const [shareLink, setShareLink] = useState('')
-
-  useEffect(() => {
-    let isMounted = true
-
-    async function fetchWatchlist() {
-      if (!watchlistId) {
-        if (isMounted) {
-          setError('Invalid watchlist ID')
-          setLoading(false)
-        }
-        return
-      }
-
+  const handleMovieSelected = async (movie: TMDBSearchResult) => {
       try {
-        const response = await fetch(`/api/watchlists/${watchlistId}`)
-        if (!isMounted) return // Don't update state if component unmounted
+      const response = await fetch(`/api/watchlists/${watchlist.id}/items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          movie_id: movie.id,
+          title: getMediaTitle(movie),
+          overview: movie.overview,
+          poster_path: movie.poster_path,
+          vote_average: movie.vote_average,
+          media_type: movie.media_type,
+        }),
+      });
         
         if (!response.ok) {
-          if (response.status === 404) {
-            setError('Watchlist not found')
-          } else {
-            throw new Error(`Failed to fetch watchlist: ${response.status}`)
-          }
-        } else {
-          const data = await response.json()
-          setWatchlist(data)
-        }
-      } catch (err) {
-        console.error('Error fetching watchlist:', err)
-        if (isMounted) {
-          setError('Failed to load watchlist')
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false)
-        }
+        const { error } = await response.json();
+        throw new Error(error || "Failed to add movie.");
       }
-    }
 
-    fetchWatchlist()
+      toast({
+        title: "Success",
+        description: `"${getMediaTitle(movie)}" has been added to the watchlist.`,
+      });
 
-    return () => {
-      isMounted = false
-    }
-  }, [watchlistId])
-
-  const handleToggleWatched = async (itemId: number) => {
-    if (watchlist) {
-      setWatchlist({
-        ...watchlist,
-        items: watchlist.items.map(item =>
-          item.id === itemId ? { 
-            ...item, 
-            watched: !item.watched,
-            watched_at: !item.watched ? new Date().toISOString() : null,
-            watched_by: !item.watched ? { id: 'user-123', name: 'John Doe', email: 'john@example.com' } : null
-          } : item
-        )
-      })
-    }
-  }
-
-  const handleDeleteWatchlist = async () => {
-    if (!confirm('Are you sure you want to delete this watchlist? This action cannot be undone.')) {
-      return
-    }
-    
-    if (isNavigating) {
-      return // Prevent multiple navigation calls
-    }
-    
-    try {
-      setIsNavigating(true)
-      // In a real app, this would call an API to delete the watchlist
-      console.log('Deleting watchlist:', watchlistId)
-      
-      // Only navigate after successful deletion
-      router.push('/dashboard')
+      refreshWatchlist();
     } catch (error) {
-      console.error('Error deleting watchlist:', error)
-      setIsNavigating(false) // Reset navigation state if deletion fails
+      toast({
+        title: "Error",
+        description: (error as Error).message,
+        variant: "destructive",
+      });
     }
-  }
+  };
 
-  const toggleReviews = (itemId: number) => {
-    const newExpanded = new Set(expandedReviews)
-    if (newExpanded.has(itemId)) {
-      newExpanded.delete(itemId)
-    } else {
-      newExpanded.add(itemId)
-    }
-    setExpandedReviews(newExpanded)
-  }
-
-  const handleContextMenu = (event: React.MouseEvent, itemType: 'movie' | 'review', itemId: number | string, itemName: string) => {
-    event.preventDefault()
-    setContextMenu({
-      x: event.clientX,
-      y: event.clientY,
-      itemType,
-      itemId,
-      itemName
-    })
-  }
-
-  const handleRemoveItem = () => {
-    if (!contextMenu || !watchlist) return
-
-    if (contextMenu.itemType === 'movie') {
-      const itemId = contextMenu.itemId as number
-      if (confirm(`Are you sure you want to remove "${contextMenu.itemName}" from this watchlist?`)) {
-        setWatchlist({
-          ...watchlist,
-          items: watchlist.items.filter(item => item.id !== itemId)
-        })
-      }
-    } else if (contextMenu.itemType === 'review') {
-      const reviewId = contextMenu.itemId as string
-      if (confirm(`Are you sure you want to remove this review?`)) {
-        setWatchlist({
-          ...watchlist,
-          items: watchlist.items.map(item => ({
-            ...item,
-            reviews: item.reviews.filter(review => review.id !== reviewId)
-          }))
-        })
-      }
-    }
-    setContextMenu(null)
-  }
-
-  const renderStars = (rating: number) => {
-    return Array.from({ length: 5 }, (_, i) => (
-      <Star
-        key={i}
-        className={`w-4 h-4 ${i < rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
-      />
-    ))
-  }
-
-  const handleAddMovie = async () => {
-    if (!newMovieTitle.trim() || !watchlist) return
-    
-    setAddingMovie(true)
+  const fetchReviews = async (itemId: string) => {
+    setLoadingReviews((prev) => ({ ...prev, [itemId]: true }));
     try {
-      // Mock movie data - in real app, this would search TMDB API
-      const mockMovie: WatchlistItem = {
-        id: Date.now(), // Temporary ID
-        movie_id: Math.floor(Math.random() * 1000000),
-        title: newMovieTitle,
-        overview: "A great movie that was just added to the watchlist.",
-        poster_path: undefined,
-        backdrop_path: undefined,
-        vote_average: 7.5,
-        added_at: new Date().toISOString(),
-        added_by: {
-          id: 'user-123',
-          name: 'John Doe',
-          email: 'john@example.com'
-        },
-        watched: false,
-        watched_at: null,
-        watched_by: null,
-        reviews: []
-      }
-      
-      setWatchlist({
-        ...watchlist,
-        items: [...watchlist.items, mockMovie]
-      })
-      
-      setNewMovieTitle('')
-      setShowAddMovie(false)
-    } catch (error) {
-      console.error('Error adding movie:', error)
+      const res = await fetch(`/api/watchlists/${watchlist.id}/items/${itemId}/reviews`);
+      const data = await res.json();
+      setReviewsByItem((prev) => ({ ...prev, [itemId]: data }));
+    } catch {
+      setReviewsByItem((prev) => ({ ...prev, [itemId]: [] }));
     } finally {
-      setAddingMovie(false)
+      setLoadingReviews((prev) => ({ ...prev, [itemId]: false }));
     }
-  }
+  };
 
-  const handleAddReview = async (itemId: number) => {
-    if (!newReviewComment.trim() || !watchlist) return
-    
-    setAddingReview(true)
+  useEffect(() => {
+    if (watchlist.watchlist_items) {
+      watchlist.watchlist_items.forEach((item) => {
+        fetchReviews(item.id);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchlist.watchlist_items?.length]);
+
+  const getCurrentUserReview = (itemId: string) => {
+    const reviews = reviewsByItem[itemId] || [];
+    return reviews.find((r) => r.user_id === user?.id) || null;
+  };
+
+  const handleReviewDialogOpen = (item: WatchlistItem) => {
+    const myReview = getCurrentUserReview(item.id);
+    setReviewTarget(item);
+    setReviewText(myReview?.review_text || "");
+    setReviewRating(myReview?.review_rating || 0);
+    setReviewDialogOpen(true);
+    setWatched(myReview?.watched || false);
+    setWatchedAt(myReview?.watched_at ? myReview.watched_at.slice(0, 10) : "");
+  };
+
+  const [watched, setWatched] = useState(false);
+  const [watchedAt, setWatchedAt] = useState("");
+
+  const handleReviewSubmit = async () => {
+    if (!reviewTarget) return;
+    setSubmittingReview(true);
     try {
-      const mockReview: Review = {
-        id: `review-${Date.now()}`,
-        user_id: 'user-123',
-        user_name: 'John Doe',
-        rating: newReviewRating,
-        comment: newReviewComment,
-        created_at: new Date().toISOString()
+      const response = await fetch(`/api/watchlists/${watchlist.id}/items/${reviewTarget.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ review_text: reviewText, review_rating: reviewRating, watched, watched_at: watched ? watchedAt : null }),
+      });
+      if (!response.ok) {
+        const { error } = await response.json();
+        throw new Error(error || "Failed to update review.");
       }
-      
-      setWatchlist({
-        ...watchlist,
-        items: watchlist.items.map(item =>
-          item.id === itemId
-            ? { ...item, reviews: [...item.reviews, mockReview] }
-            : item
-        )
-      })
-      
-      setNewReviewRating(5)
-      setNewReviewComment('')
-      setShowAddReview(null)
+      setReviewDialogOpen(false);
+      setReviewTarget(null);
+      fetchReviews(reviewTarget.id);
+      toast({ title: "Review saved!" });
     } catch (error) {
-      console.error('Error adding review:', error)
+      toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
     } finally {
-      setAddingReview(false)
+      setSubmittingReview(false);
     }
-  }
+  };
 
-  const handleEditReview = (itemId: number, reviewId: string, currentRating: number, currentComment: string) => {
-    setEditingReview({
-      itemId,
-      reviewId,
-      rating: currentRating,
-      comment: currentComment
-    })
-  }
+  const toggleReviews = (itemId: string) => setOpenReviews(prev => ({ ...prev, [itemId]: !prev[itemId] }));
 
-  const handleSaveEditReview = async () => {
-    if (!editingReview || !watchlist) return
-    
-    setAddingReview(true)
-    try {
-      setWatchlist({
-        ...watchlist,
-        items: watchlist.items.map(item =>
-          item.id === editingReview.itemId
-            ? {
-                ...item,
-                reviews: item.reviews.map(review =>
-                  review.id === editingReview.reviewId
-                    ? {
-                        ...review,
-                        rating: editingReview.rating,
-                        comment: editingReview.comment
-                      }
-                    : review
-                )
-              }
-            : item
-        )
-      })
-      
-      setEditingReview(null)
-    } catch (error) {
-      console.error('Error updating review:', error)
-    } finally {
-      setAddingReview(false)
-    }
-  }
+  const sortedItems = [...watchlist.watchlist_items].sort((a, b) => {
+    const aWatched = !!getCurrentUserReview(a.id)?.watched;
+    const bWatched = !!getCurrentUserReview(b.id)?.watched;
+    if (aWatched === bWatched) return 0;
+    return aWatched ? 1 : -1;
+  });
 
-  const handleShareWatchlist = async () => {
-    if (!shareEmail.trim() || !watchlist) return
-    
-    setSharing(true)
-    try {
-      // Mock sharing - in real app, this would send an email invitation
-      console.log(`Sharing watchlist "${watchlist.name}" with ${shareEmail}`)
-      
-      // Generate share link
-      const link = `${window.location.origin}/watchlist/${watchlistId}`
-      setShareLink(link)
-      
-      setShareEmail('')
-      // Don't close modal immediately to show the link
-    } catch (error) {
-      console.error('Error sharing watchlist:', error)
-    } finally {
-      setSharing(false)
-    }
-  }
-
-  const copyShareLink = async () => {
-    try {
-      await navigator.clipboard.writeText(shareLink)
-      // You could add a toast notification here
-    } catch (error) {
-      console.error('Failed to copy link:', error)
-    }
-  }
-
-  if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading watchlist...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (error || !watchlist) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-heading text-foreground mb-4">Watchlist not found</h1>
-          <p className="text-muted-foreground mb-4">{error || 'This watchlist does not exist or you do not have access to it.'}</p>
-          <Button asChild>
-            <Link href="/dashboard">Back to Dashboard</Link>
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
-  const watchedItems = watchlist.items.filter(item => item.watched).length
-  const totalItems = watchlist.items.length
-
-  return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Context Menu */}
-      {contextMenu && (
-        <ContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          onClose={() => setContextMenu(null)}
-          onRemove={handleRemoveItem}
-          onEdit={contextMenu.itemType === 'review' ? () => {
-            if (!watchlist) return
-            const item = watchlist.items.find(i => i.id === Number(contextMenu.itemId))
-            const review = item?.reviews.find(r => r.id === contextMenu.itemId)
-            if (item && review) {
-              handleEditReview(item.id, review.id, review.rating, review.comment)
-            }
-            setContextMenu(null)
-          } : undefined}
-          itemType={contextMenu.itemType}
-          itemName={contextMenu.itemName}
-        />
-      )}
-
+    <div className="bg-background min-h-screen text-foreground font-sans">
       {/* Header */}
-      <header className="bg-gradient-to-b from-black/80 to-transparent">
+      <header className="fixed top-0 left-0 w-full bg-gradient-to-b from-black/80 to-transparent z-50 transition-all duration-300">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Button asChild variant="ghost" size="icon" className="hover:bg-primary/20 hover:text-primary">
-                <Link href="/dashboard">
-                  <ArrowLeft className="w-5 h-5" />
-                </Link>
-              </Button>
-              <Link href="/" className="flex items-center gap-2">
-                <Film className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
-                <span className="text-2xl sm:text-4xl font-logo tracking-wider">
-                  CineSync
-                </span>
-              </Link>
+              <span className="text-2xl sm:text-4xl font-logo tracking-wider text-primary">CineSync</span>
             </div>
             <div className="flex items-center gap-2 sm:gap-4">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setShowShareModal(true)}
-                className="hover:bg-primary/20 hover:text-primary"
-              >
-                <Share2 className="w-4 h-4" />
+              <Button onClick={() => setIsSearchOpen(true)} variant="ghost" size="icon" className="hover:bg-primary/20 hover:text-primary">
+                <PlusCircle className="w-5 h-5" />
+                <span className="sr-only">Add Movie</span>
               </Button>
-              <Button asChild variant="ghost" size="icon" className="hover:bg-primary/20 hover:text-primary">
-                <Link href="/settings">
-                  <Settings className="w-4 h-4" />
-                </Link>
-              </Button>
+              {(isOwner || isEditor) && (
+                <Button variant="ghost" size="icon" className="hover:bg-primary/20 hover:text-primary" onClick={() => setIsShareOpen(true)}>
+                  <Users2 className="w-5 h-5" />
+                  <span className="sr-only">Share</span>
+                </Button>
+              )}
             </div>
           </div>
         </div>
       </header>
-
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-16">
-        {/* Watchlist Header */}
-        <div className="mb-8 sm:mb-12">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-6 mb-6">
-            <div className="flex-1">
-              <h1 className="text-3xl sm:text-5xl font-heading text-primary mb-4">
-                {watchlist.name}
-              </h1>
-              {watchlist.description && (
-                <p className="text-lg sm:text-xl font-sans text-muted-foreground mb-6">{watchlist.description}</p>
-              )}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8 text-base sm:text-lg font-sans">
-                <div className="flex items-center gap-2 text-primary">
-                  <ListVideo className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span>{watchedItems} of {totalItems} watched</span>
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-24">
+        <div className="mb-8">
+          <h1 className="text-3xl sm:text-5xl font-heading font-bold mb-2">{watchlist.name}</h1>
+          <p className="text-muted-foreground text-lg mb-2">{watchlist.description || "No description."}</p>
+          {watchlist.created_at && (
+            <p className="text-xs text-muted-foreground mb-4">Created {new Date(watchlist.created_at).toLocaleDateString()}</p>
+          )}
                 </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Users2 className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span>{watchlist.members.length} members</span>
-                </div>
-                <div className="text-muted-foreground">
-                  Created {new Date(watchlist.created_at).toLocaleDateString()}
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
-              <Button
-                onClick={() => setShowAddMovie(true)}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Movie
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleDeleteWatchlist}
-                className="bg-red-500/20 border-red-500/30 text-red-200 hover:bg-red-500/30 hover:text-red-100"
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete List
-              </Button>
-            </div>
-          </div>
-
-          {/* Share Modal */}
-          {showShareModal && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <div className="bg-background border-2 border-border/20 rounded-lg p-6 w-full max-w-md">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-heading text-primary">Share Watchlist</h3>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => {
-                      setShowShareModal(false)
-                      setShareLink('')
-                    }}
-                    className="hover:bg-secondary/20"
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-                
-                {!shareLink ? (
-                  <div className="space-y-4">
+        <div className="mb-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Members</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {watchlist.watchlist_members && watchlist.watchlist_members.length > 0 ? (
+                watchlist.watchlist_members.map((member) => (
+                  member.profiles ? (
+                    <div key={member.profiles.id} className="flex items-center space-x-3">
+                      <Avatar>
+                        <AvatarImage src={member.profiles.avatar_url} />
+                        <AvatarFallback>
+                          {member.profiles.full_name?.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
                     <div>
-                      <label className="block text-sm font-medium text-foreground mb-2">
-                        Email Address
-                      </label>
-                      <Input
-                        type="email"
-                        value={shareEmail}
-                        onChange={(e) => setShareEmail(e.target.value)}
-                        placeholder="Enter email address..."
-                        className="bg-secondary/20 border-border/20"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handleShareWatchlist()
-                          }
-                        }}
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={handleShareWatchlist}
-                        disabled={!shareEmail.trim() || sharing}
-                        className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
-                      >
-                        {sharing ? 'Sharing...' : 'Send Invitation'}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => setShowShareModal(false)}
-                        className="flex-1"
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="bg-secondary/20 rounded-lg p-4">
-                      <p className="text-sm text-muted-foreground mb-2">Share this link:</p>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          value={shareLink}
-                          readOnly
-                          className="bg-background/50 border-border/20 text-sm"
-                        />
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={copyShareLink}
-                          className="hover:bg-secondary/40"
-                        >
-                          <Copy className="w-4 h-4" />
-                        </Button>
+                        <p className="font-semibold">{member.profiles.full_name}</p>
+                        <Badge variant={member.role === 'owner' ? "default" : "secondary"}>
+                          {member.role}
+                        </Badge>
                       </div>
                     </div>
-                    <Button
-                      onClick={() => {
-                        setShowShareModal(false)
-                        setShareLink('')
-                      }}
-                      className="w-full"
-                    >
-                      Done
-                    </Button>
-                  </div>
-                )}
+                  ) : (
+                    <div key={Math.random()} className="flex items-center space-x-3 opacity-60 italic text-xs text-muted-foreground">Unknown member</div>
+                  )
+                ))
+              ) : (
+                <div className="text-xs text-muted-foreground">No members found.</div>
+              )}
+            </CardContent>
+          </Card>
               </div>
-            </div>
-          )}
-
-          {/* Add Movie Modal */}
-          {showAddMovie && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <div className="bg-background border-2 border-border/20 rounded-lg p-6 w-full max-w-md">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-heading text-primary">Add Movie</h3>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setShowAddMovie(false)}
-                    className="hover:bg-secondary/20"
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Movie Title
-                    </label>
-                    <Input
-                      value={newMovieTitle}
-                      onChange={(e) => setNewMovieTitle(e.target.value)}
-                      placeholder="Enter movie title..."
-                      className="bg-secondary/20 border-border/20"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          handleAddMovie()
-                        }
-                      }}
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={handleAddMovie}
-                      disabled={!newMovieTitle.trim() || addingMovie}
-                      className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+        <Card>
+          <CardHeader>
+            <CardTitle>Movies</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {watchlist.watchlist_items && watchlist.watchlist_items.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {sortedItems.map((item) => {
+                  const myReview = getCurrentUserReview(item.id);
+                  const watched = !!myReview?.watched;
+                  return (
+                    <div
+                      key={item.id}
+                      className="flex flex-col w-full rounded-xl border border-border bg-card shadow-sm mb-4 overflow-hidden relative"
                     >
-                      {addingMovie ? 'Adding...' : 'Add Movie'}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowAddMovie(false)}
-                      className="flex-1"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Members Section */}
-          <div className="bg-secondary/20 border-2 border-border/20 rounded-lg p-4 sm:p-6 mb-8">
-            <h3 className="text-lg sm:text-xl font-heading text-primary mb-4">Shared with</h3>
-            <div className="flex flex-wrap gap-2 sm:gap-3">
-              {watchlist.members.map((member) => (
-                <div key={member.id} className="flex items-center gap-2 bg-background/50 px-2 sm:px-3 py-1 sm:py-2 rounded-lg border border-border/20">
-                  <User className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
-                  <span className="font-sans text-xs sm:text-sm">
-                    {member.full_name}
-                    {member.role === 'owner' && (
-                      <Badge variant="outline" className="ml-1 sm:ml-2 text-xs border-primary/30 text-primary">
-                        Owner
-                      </Badge>
-                    )}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Watchlist Items */}
-        <div className="space-y-6 sm:space-y-8">
-          {watchlist.items.length > 0 ? (
-            watchlist.items.map((item) => (
-              <Card 
-                key={item.id} 
-                className="bg-secondary/20 border-2 border-border/20 hover:border-primary/30 transition-all duration-300 group"
-                onContextMenu={(e) => handleContextMenu(e, 'movie', item.id, item.title)}
-              >
-                <CardContent className="p-4 sm:p-8">
-                  <div className="flex flex-col lg:flex-row gap-4 sm:gap-8">
-                    {/* Poster */}
-                    <div className="flex-shrink-0 flex justify-center lg:justify-start relative">
-                      <img
-                        src={
-                          item.poster_path 
-                            ? `${TMDB_IMAGE_BASE_URL}w300${item.poster_path}` 
-                            : '/placeholder.svg'
-                        }
-                        alt={item.title}
-                        className="w-24 h-36 sm:w-32 sm:h-48 object-cover rounded-lg shadow-lg"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement
-                          target.src = '/placeholder.svg'
-                        }}
-                      />
-                      {/* Mobile context menu trigger */}
-                      <button
-                        className="lg:hidden absolute top-2 right-2 w-8 h-8 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white transition-colors"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          const rect = e.currentTarget.getBoundingClientRect()
-                          handleContextMenu(e as any, 'movie', item.id, item.title)
-                        }}
-                      >
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
-                        <div className="flex-1">
-                          <h3 className="text-xl sm:text-2xl font-heading text-primary mb-2">
-                            {item.title}
-                          </h3>
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-base sm:text-lg font-sans mb-4">
-                            <div className="flex items-center gap-1 text-yellow-400">
-                              <Star className="w-4 h-4 sm:w-5 sm:h-5" />
-                              <span className="font-bold">{item.vote_average.toFixed(1)}</span>
-                            </div>
-                            <Badge variant="outline" className="text-foreground border-border/20 w-fit">
-                              Movie
-                            </Badge>
+                      {/* Checkmark if watched */}
+                      {watched && (
+                        <div className="absolute top-2 right-2 z-10 bg-green-500 text-white rounded-full p-1 shadow">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                        </div>
+                      )}
+                      {/* Movie poster at the top, full image, takes most of the height */}
+                      <div className="flex flex-col items-center justify-center p-2 pb-0 mt-2">
+                        {item.poster_path ? (
+                          <img
+                            src={`https://image.tmdb.org/t/p/w500${item.poster_path}`}
+                            alt={item.title}
+                            className="w-auto h-64 max-h-[340px] object-contain rounded-lg mx-auto"
+                          />
+                        ) : (
+                          <div className="w-36 md:w-48 h-64 bg-gray-200 rounded-lg flex items-center justify-center text-gray-500">No Image</div>
+                        )}
+                        {/* Title and added by, just below poster */}
+                        <div className="w-full mt-2">
+                          <div className="font-bold text-base text-center mb-0.5">{item.title}</div>
+                          {item.profiles && (
+                            <div className="text-xs text-muted-foreground text-center mb-1">Added by {item.profiles.full_name || 'Unknown'}</div>
+                          )}
+                        </div>
+                      </div>
+                      {/* Description and actions, minimal padding */}
+                      <div className="flex flex-col flex-1 justify-center px-3 pt-2 pb-1 h-full">
+                        <div className="flex flex-col flex-1 justify-center">
+                          {item.overview && (
+                            <div className="text-xs text-gray-500 text-center mb-1">{item.overview}</div>
+                          )}
+                          <div className="flex items-center justify-center gap-2 mt-1">
+                            <Button size="sm" variant="ghost" className="text-muted-foreground px-2 py-1 h-7" onClick={() => toggleReviews(item.id)}>
+                              {openReviews[item.id] ? 'Hide Reviews' : 'Show Reviews'}
+                            </Button>
+                            <Button size="sm" variant="ghost" className="text-muted-foreground px-2 py-1 h-7" onClick={() => handleReviewDialogOpen(item)}>
+                              {myReview ? 'Edit Review' : 'Add Review'}
+                            </Button>
                           </div>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleToggleWatched(item.id)}
-                          className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full ${
-                            item.watched 
-                              ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' 
-                              : 'bg-secondary/20 text-muted-foreground hover:bg-secondary/40'
-                          }`}
-                        >
-                          {item.watched ? <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6" /> : <Circle className="w-5 h-5 sm:w-6 sm:h-6" />}
-                        </Button>
                       </div>
-                      
-                      <p className="text-muted-foreground font-sans leading-relaxed mb-6 text-sm sm:text-base">
-                        {item.overview}
-                      </p>
-                      
-                      {/* Movie Details */}
-                      <div className="space-y-2 sm:space-y-3 text-xs sm:text-sm font-sans mb-6">
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <User className="w-3 h-3 sm:w-4 sm:h-4" />
-                          <span>Added by <span className="text-foreground font-semibold">{item.added_by.name}</span></span>
-                        </div>
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
-                          <span>Added {new Date(item.added_at).toLocaleDateString()}</span>
-                        </div>
-                        {item.watched && item.watched_at && item.watched_by && (
-                          <>
-                            <div className="flex items-center gap-2 text-green-400">
-                              <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
-                              <span>Watched by <span className="font-semibold">{item.watched_by.name}</span></span>
-                            </div>
-                            <div className="flex items-center gap-2 text-green-400">
-                              <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
-                              <span>Watched {new Date(item.watched_at).toLocaleDateString()}</span>
-                            </div>
-                          </>
-                        )}
-                      </div>
-
-                      {/* Reviews Section */}
-                      <div className="border-t border-border/20 pt-4 sm:pt-6">
-                        <div className="flex items-center justify-between mb-4">
-                          <Button
-                            variant="ghost"
-                            onClick={() => toggleReviews(item.id)}
-                            className="flex items-center gap-2 text-muted-foreground hover:text-foreground p-0 h-auto"
-                          >
-                            <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-                            <span className="text-sm sm:text-base">
-                              {item.reviews.length} review{item.reviews.length !== 1 ? 's' : ''}
-                            </span>
-                            {expandedReviews.has(item.id) ? (
-                              <ChevronUp className="w-4 h-4 sm:w-5 sm:h-5" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5" />
-                            )}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setShowAddReview(showAddReview === item.id ? null : item.id)}
-                            className="text-primary hover:text-primary/80"
-                          >
-                            <Plus className="w-4 h-4 mr-1" />
-                            Add Review
-                          </Button>
-                        </div>
-                        
-                        {/* Add Review Form */}
-                        {showAddReview === item.id && (
-                          <div className="bg-background/30 rounded-lg p-4 border border-border/10 mb-4">
-                            <div className="space-y-4">
-                              <div>
-                                <label className="block text-sm font-medium text-foreground mb-2">
-                                  Rating
-                                </label>
-                                <div className="flex gap-1">
-                                  {[1, 2, 3, 4, 5].map((star) => (
-                                    <button
-                                      key={star}
-                                      onClick={() => setNewReviewRating(star)}
-                                      className="text-2xl hover:scale-110 transition-transform"
-                                    >
-                                      <Star
-                                        className={`w-6 h-6 ${
-                                          star <= newReviewRating
-                                            ? 'text-yellow-400 fill-current'
-                                            : 'text-gray-300'
-                                        }`}
-                                      />
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-foreground mb-2">
-                                  Comment
-                                </label>
-                                <Textarea
-                                  value={newReviewComment}
-                                  onChange={(e) => setNewReviewComment(e.target.value)}
-                                  placeholder="Share your thoughts about this movie..."
-                                  className="bg-secondary/20 border-border/20 min-h-[80px]"
-                                />
-                              </div>
-                              <div className="flex gap-2">
-                                <Button
-                                  onClick={() => handleAddReview(item.id)}
-                                  disabled={!newReviewComment.trim() || addingReview}
-                                  className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
-                                >
-                                  {addingReview ? 'Adding...' : 'Add Review'}
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  onClick={() => setShowAddReview(null)}
-                                  className="flex-1"
-                                >
-                                  Cancel
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                        
-                        {expandedReviews.has(item.id) && (
-                          <div className="space-y-4">
-                            {item.reviews.length > 0 ? (
-                              item.reviews.map((review) => (
-                                <div 
-                                  key={review.id} 
-                                  className="bg-background/30 rounded-lg p-3 sm:p-4 border border-border/10 relative group"
-                                  onContextMenu={(e) => handleContextMenu(e, 'review', review.id, review.comment)}
-                                >
-                                  {/* Edit Review Form */}
-                                  {editingReview?.reviewId === review.id ? (
-                                    <div className="space-y-4">
-                                      <div>
-                                        <label className="block text-sm font-medium text-foreground mb-2">
-                                          Rating
-                                        </label>
-                                        <div className="flex gap-1">
-                                          {[1, 2, 3, 4, 5].map((star) => (
-                                            <button
-                                              key={star}
-                                              onClick={() => setEditingReview(prev => prev ? {...prev, rating: star} : null)}
-                                              className="text-2xl hover:scale-110 transition-transform"
-                                            >
-                                              <Star
-                                                className={`w-6 h-6 ${
-                                                  star <= editingReview.rating
-                                                    ? 'text-yellow-400 fill-current'
-                                                    : 'text-gray-300'
-                                                }`}
-                                              />
-                                            </button>
-                                          ))}
-                                        </div>
-                                      </div>
-                                      <div>
-                                        <label className="block text-sm font-medium text-foreground mb-2">
-                                          Comment
-                                        </label>
-                                        <Textarea
-                                          value={editingReview.comment}
-                                          onChange={(e) => setEditingReview(prev => prev ? {...prev, comment: e.target.value} : null)}
-                                          className="bg-secondary/20 border-border/20 min-h-[80px]"
-                                        />
-                                      </div>
-                                      <div className="flex gap-2">
-                                        <Button
-                                          onClick={handleSaveEditReview}
-                                          disabled={!editingReview.comment.trim() || addingReview}
-                                          className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
-                                        >
-                                          {addingReview ? 'Saving...' : 'Save Changes'}
-                                        </Button>
-                                        <Button
-                                          variant="outline"
-                                          onClick={() => setEditingReview(null)}
-                                          className="flex-1"
-                                        >
-                                          Cancel
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <>
-                                      <div className="flex items-start justify-between mb-2">
-                                        <div className="flex items-center gap-2">
-                                          <User className="w-4 h-4 text-muted-foreground" />
-                                          <span className="font-semibold text-sm sm:text-base">{review.user_name}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                          {renderStars(review.rating)}
-                                        </div>
-                                      </div>
-                                      <p className="text-muted-foreground text-sm sm:text-base mb-2">{review.comment}</p>
-                                      <div className="text-xs text-muted-foreground">
-                                        {new Date(review.created_at).toLocaleDateString()}
-                                      </div>
-                                      {/* Mobile context menu trigger for reviews */}
-                                      <button
-                                        className="lg:hidden absolute top-2 right-2 w-6 h-6 bg-black/30 hover:bg-black/50 rounded flex items-center justify-center text-white transition-colors opacity-0 group-hover:opacity-100"
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          const rect = e.currentTarget.getBoundingClientRect()
-                                          handleContextMenu(e as any, 'review', review.id, review.comment)
-                                        }}
-                                      >
-                                        <MoreVertical className="w-3 h-3" />
-                                      </button>
-                                    </>
+                      {/* Reviews at the bottom, full width, minimal padding */}
+                      {openReviews[item.id] && (
+                        <div className="flex flex-col px-2 pb-2 gap-2 bg-background w-full">
+                          {Array.isArray(reviewsByItem[item.id]) && reviewsByItem[item.id].length > 0 ? (
+                            reviewsByItem[item.id].map((review) => (
+                              <div
+                                key={review.user_id}
+                                className={`flex flex-col w-full rounded-lg p-2 border border-secondary bg-secondary/10 text-foreground mb-1 ${review.user_id === user?.id ? 'ring-2 ring-yellow-400' : ''}`}
+                              >
+                                {/* Full name centered at the top */}
+                                <div className="w-full text-center font-semibold text-xs mb-0.5">{review.full_name}</div>
+                                {/* Avatar and watched date centered below name */}
+                                <div className="flex items-center justify-center gap-2 w-full mb-1">
+                                  <Avatar className="w-6 h-6">
+                                    <AvatarImage src={review.avatar_url} />
+                                    <AvatarFallback>{review.full_name?.charAt(0).toUpperCase()}</AvatarFallback>
+                                  </Avatar>
+                                  {review.watched && review.watched_at && (
+                                    <span className="text-[10px] rounded bg-green-100 text-green-700 px-1 py-0.5">Watched {new Date(review.watched_at).toLocaleDateString()}</span>
                                   )}
                                 </div>
-                              ))
-                            ) : (
-                              <div className="text-center py-8 text-muted-foreground">
-                                <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                <p>No reviews yet. Be the first to share your thoughts!</p>
+                                {/* Stars and rating centered */}
+                                <div className="flex items-center justify-center gap-1 mb-0.5">
+                                  {[1,2,3,4,5].map(star => (
+                                    <span key={star} className={star <= (review.review_rating ?? 0) ? "text-yellow-400 text-base" : "text-gray-600 text-base"}>★</span>
+                                  ))}
+                                  {typeof review.review_rating === 'number' && review.review_rating > 0 && (
+                                    <span className="ml-1 text-xs text-foreground font-semibold">({review.review_rating.toFixed(1)})</span>
+                                  )}
+                                </div>
+                                {/* Review text smaller, centered */}
+                                {review.review_text && (
+                                  <div className="text-xs font-medium text-foreground text-center mb-1">{review.review_text}</div>
+                                )}
                               </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                            ))
+                          ) : (
+                            <div className="text-center text-gray-500 italic">No reviews yet</div>
+                          )}
+                        </div>
+                      )}
                     </div>
+                  );
+                })}
+                    </div>
+            ) : (
+              <div className="text-center py-8">
+                <p>No movies in this watchlist yet.</p>
+                <Button size="sm" className="mt-4" onClick={() => setIsSearchOpen(true)}>Add your first movie</Button>
                   </div>
+            )}
                 </CardContent>
               </Card>
-            ))
-          ) : (
-            <div className="text-center py-16 px-6 bg-secondary/20 rounded-lg border-2 border-dashed border-border/20">
-              <h3 className="text-xl sm:text-2xl font-heading text-primary mb-4">This watchlist is empty</h3>
-              <p className="text-muted-foreground font-sans mb-6">Start adding movies to your watchlist to see them here.</p>
-              <Button 
-                onClick={() => setShowAddMovie(true)}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Movies
-              </Button>
+        <MovieSearch
+          isOpen={isSearchOpen}
+          onClose={() => setIsSearchOpen(false)}
+          watchlistId={watchlist.id}
+          onSelect={handleMovieSelected}
+        />
+        {(isOwner || isEditor) && (
+          <InviteUserDialog
+            open={isShareOpen}
+            onOpenChange={setIsShareOpen}
+            watchlistId={watchlist.id}
+            onMemberAdded={refreshWatchlist}
+          />
+        )}
+        {/* Review Dialog */}
+        <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{reviewTarget?.title ? `Your Review: ${reviewTarget.title}` : "Add Review"}</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-2">
+                {[1,2,3,4,5].map(star => (
+                  <button
+                    key={star}
+                    type="button"
+                    className={star <= reviewRating ? "text-yellow-400 text-2xl" : "text-gray-300 text-2xl"}
+                    onClick={() => setReviewRating(star)}
+                    aria-label={`Set rating to ${star}`}
+                  >
+                    ★
+                  </button>
+                ))}
             </div>
+              <Textarea
+                value={reviewText}
+                onChange={e => setReviewText(e.target.value)}
+                placeholder="Write your review..."
+                rows={4}
+              />
+              <div className="flex items-center gap-2">
+                <input type="checkbox" checked={watched} onChange={e => setWatched(e.target.checked)} id="watched" />
+                <label htmlFor="watched">Mark as watched</label>
+                {watched && (
+                  <Input type="date" value={watchedAt} onChange={e => setWatchedAt(e.target.value)} className="ml-2" />
           )}
         </div>
       </div>
+            <DialogFooter>
+              <Button onClick={handleReviewSubmit} disabled={submittingReview || reviewRating < 1}>
+                {submittingReview ? "Saving..." : "Save Review"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </main>
     </div>
-  )
+  );
 } 

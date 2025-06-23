@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Clock, Users, Calendar, Star, Play, Zap, Film, ArrowRight } from "lucide-react"
+import { Clock, Users, Calendar, Star, Play, Zap, Film, ArrowRight, Clapperboard, MessageSquareQuote } from "lucide-react"
 import Link from "next/link"
 
 export default function LandingPage() {
@@ -18,13 +18,49 @@ export default function LandingPage() {
     }
   }, [user, loading, router])
 
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+    .feature-card {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 2rem;
+      border-radius: 0.75rem;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.3s ease;
+    }
+    .feature-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+      background: rgba(255, 255, 255, 0.08);
+    }
+    .icon-wrapper {
+      display: inline-flex;
+      padding: 1rem;
+      border-radius: 9999px;
+      background: rgba(255, 215, 0, 0.1); /* Gold/Primary color */
+    }
+    .loader {
+      border: 4px solid rgba(255, 255, 255, 0.2);
+      border-left-color: #ffd700; /* gold/primary */
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400 mx-auto"></div>
-          <p className="mt-4 text-slate-400">Loading...</p>
-        </div>
+      <div className="min-h-screen w-full flex items-center justify-center bg-background">
+        <div className="loader"></div>
       </div>
     )
   }
@@ -34,178 +70,85 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background text-foreground font-sans">
       {/* Header */}
-      <header className="container mx-auto px-4 py-6">
-        <nav className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Film className="w-8 h-8 text-yellow-400" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">
-              WatchTogether
+      <header className="absolute top-0 left-0 w-full z-10 py-6 px-4 sm:px-8 bg-gradient-to-b from-black/60 to-transparent">
+        <div className="container mx-auto flex justify-between items-center">
+          <Link href="/" className="flex items-center gap-2">
+            <Film className="w-8 h-8 text-primary" />
+            <span className="text-3xl font-logo tracking-wider text-white">
+              CineSync
             </span>
+          </Link>
+          <div className="space-x-2">
+            <Button asChild variant="ghost" className="text-white hover:bg-primary/20 hover:text-primary">
+              <Link href="/login">Sign In</Link>
+            </Button>
+            <Button asChild className="bg-primary text-black font-bold hover:bg-primary/90">
+              <Link href="/login">Get Started</Link>
+            </Button>
           </div>
-          <div className="flex items-center gap-4">
-            <Link href="/login">
-              <Button variant="ghost" className="text-slate-300 hover:text-yellow-400">
-                Sign In
-              </Button>
-            </Link>
-            <Link href="/signup">
-              <Button className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black font-medium">
-                Get Started
-              </Button>
-            </Link>
-          </div>
-        </nav>
+        </div>
       </header>
 
       {/* Hero Section */}
-      <section className="container mx-auto px-4 py-16 text-center">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center justify-center mb-6">
-            <Film className="h-12 w-12 text-yellow-400 mr-4" />
-            <h1 className="text-5xl md:text-7xl font-bold bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">
-              WatchTogether
-            </h1>
-          </div>
-          <p className="text-xl md:text-2xl text-slate-300 mb-8 leading-relaxed max-w-3xl mx-auto">
-            Create shared watchlists with friends and family. Track movies and TV shows, estimate watch times, and never
-            run out of great content to enjoy together.
+      <section className="relative min-h-screen flex items-center justify-center text-center overflow-hidden bg-gradient-to-br from-black via-purple-900/50 to-black">
+        <div className="absolute inset-0 bg-black/40"></div>
+        <div className="relative z-10 container mx-auto px-4 text-white">
+          <h1 className="text-5xl md:text-7xl font-heading mb-4 leading-tight">
+            Share the Magic of Movies.
+          </h1>
+          <p className="text-xl md:text-2xl font-light text-muted-foreground max-w-3xl mx-auto mb-8">
+            Create shared watchlists, discover films, and discuss your favorites with friends and family. Your next movie night, perfected.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/signup">
-              <Button
-                size="lg"
-                className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black font-medium text-lg px-8 py-4"
-              >
-                Start Watching Together
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-            </Link>
-            <Link href="/login">
-              <Button
-                variant="outline"
-                size="lg"
-                className="border-slate-600 text-slate-300 hover:bg-slate-800 text-lg px-8 py-4"
-              >
-                Sign In
-              </Button>
-            </Link>
-          </div>
+          <Button asChild size="lg" className="bg-primary text-black font-bold text-lg px-8 py-6 hover:bg-primary/90">
+            <Link href="/login">Start Watching Together</Link>
+          </Button>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="container mx-auto px-4 py-16">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-white mb-4">Everything You Need for Perfect Movie Nights</h2>
-          <p className="text-lg text-slate-400 max-w-2xl mx-auto">
-            From smart time estimates to streaming availability, WatchTogether makes coordinating your viewing
-            experience effortless.
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          <Card className="bg-slate-800/50 border-slate-700 hover:border-yellow-400/50 transition-all duration-300 hover:scale-105">
-            <CardHeader>
-              <Users className="w-12 h-12 text-yellow-400 mb-4" />
-              <CardTitle className="text-white">Shared Watchlists</CardTitle>
-              <CardDescription className="text-slate-300">
-                Create lists with friends, family, or roommates. Everyone can add, vote, and comment on what to watch
-                next.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="bg-slate-800/50 border-slate-700 hover:border-yellow-400/50 transition-all duration-300 hover:scale-105">
-            <CardHeader>
-              <Clock className="w-12 h-12 text-yellow-400 mb-4" />
-              <CardTitle className="text-white">Smart Time Estimates</CardTitle>
-              <CardDescription className="text-slate-300">
-                Know exactly how long your watchlist will take. Get suggestions based on your available time tonight.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="bg-slate-800/50 border-slate-700 hover:border-yellow-400/50 transition-all duration-300 hover:scale-105">
-            <CardHeader>
-              <Zap className="w-12 h-12 text-yellow-400 mb-4" />
-              <CardTitle className="text-white">Streaming Availability</CardTitle>
-              <CardDescription className="text-slate-300">
-                See where each title is available to stream. Filter by your shared subscription services.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="bg-slate-800/50 border-slate-700 hover:border-yellow-400/50 transition-all duration-300 hover:scale-105">
-            <CardHeader>
-              <Star className="w-12 h-12 text-yellow-400 mb-4" />
-              <CardTitle className="text-white">Group Voting</CardTitle>
-              <CardDescription className="text-slate-300">
-                Vote on what to watch next. Smart sorting helps you find the perfect compromise for movie night.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="bg-slate-800/50 border-slate-700 hover:border-yellow-400/50 transition-all duration-300 hover:scale-105">
-            <CardHeader>
-              <Calendar className="w-12 h-12 text-yellow-400 mb-4" />
-              <CardTitle className="text-white">Calendar Integration</CardTitle>
-              <CardDescription className="text-slate-300">
-                Schedule watch sessions and sync with your calendar. Never miss a planned movie night again.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="bg-slate-800/50 border-slate-700 hover:border-yellow-400/50 transition-all duration-300 hover:scale-105">
-            <CardHeader>
-              <Play className="w-12 h-12 text-yellow-400 mb-4" />
-              <CardTitle className="text-white">Progress Tracking</CardTitle>
-              <CardDescription className="text-slate-300">
-                Mark episodes as watched, track series progress, and see your viewing history at a glance.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="container mx-auto px-4 py-16">
-        <div className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 rounded-2xl p-12 text-center border border-slate-700">
-          <h2 className="text-3xl font-bold text-white mb-4">Ready to Transform Your Movie Nights?</h2>
-          <p className="text-xl text-slate-300 mb-8">
-            Join thousands of users who've already discovered the joy of organized, shared viewing experiences.
-          </p>
-          <Link href="/signup">
-            <Button
-              size="lg"
-              className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black font-medium text-xl px-12 py-6"
-            >
-              Get Started for Free
-              <ArrowRight className="ml-3 h-6 w-6" />
-            </Button>
-          </Link>
+      <section className="py-20 bg-background/80 backdrop-blur-md">
+        <div className="container mx-auto px-4">
+          <h2 className="text-4xl font-heading text-center mb-12 text-primary">
+            Everything You Need for Perfect Movie Nights
+          </h2>
+          <div className="grid md:grid-cols-3 gap-8 text-center">
+            <div className="feature-card">
+              <div className="icon-wrapper">
+                <Users className="w-10 h-10 text-primary" />
+              </div>
+              <h3 className="text-2xl font-heading mt-4 mb-2">Shared Watchlists</h3>
+              <p className="text-muted-foreground">
+                Collaborate on the ultimate movie queue. Everyone can add, vote, and see what's next.
+              </p>
+            </div>
+            <div className="feature-card">
+              <div className="icon-wrapper">
+                <Clapperboard className="w-10 h-10 text-primary" />
+              </div>
+              <h3 className="text-2xl font-heading mt-4 mb-2">Discover & Track</h3>
+              <p className="text-muted-foreground">
+                Find new gems and keep track of what you've watched, all in one place.
+              </p>
+            </div>
+            <div className="feature-card">
+              <div className="icon-wrapper">
+                <MessageSquareQuote className="w-10 h-10 text-primary" />
+              </div>
+              <h3 className="text-2xl font-heading mt-4 mb-2">Review & Discuss</h3>
+              <p className="text-muted-foreground">
+                Leave reviews, see what your friends thought, and settle the "best movie" debate once and for all.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="container mx-auto px-4 py-8 border-t border-slate-700">
-        <div className="flex flex-col md:flex-row justify-between items-center">
-          <div className="flex items-center gap-2 mb-4 md:mb-0">
-            <Film className="w-6 h-6 text-yellow-400" />
-            <span className="text-lg font-semibold text-white">WatchTogether</span>
-          </div>
-          <div className="flex gap-6 text-sm text-slate-400">
-            <Link href="/privacy" className="hover:text-white">
-              Privacy Policy
-            </Link>
-            <Link href="/terms" className="hover:text-white">
-              Terms of Service
-            </Link>
-            <Link href="/contact" className="hover:text-white">
-              Contact
-            </Link>
-          </div>
+      <footer className="py-8 bg-black/50">
+        <div className="container mx-auto text-center text-muted-foreground">
+          <p>&copy; {new Date().getFullYear()} CineSync. All Rights Reserved.</p>
         </div>
       </footer>
     </div>

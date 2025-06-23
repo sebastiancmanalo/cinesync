@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { Inter, Playfair_Display, Lora, Bebas_Neue } from "next/font/google"
 import "./globals.css"
 import { AuthProvider } from "@/contexts/auth-context"
+import { Toaster } from "@/components/ui/sonner"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
 const playfair_display = Playfair_Display({ 
@@ -35,6 +36,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <AuthProvider>
           <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">{children}</div>
+          <Toaster />
         </AuthProvider>
       </body>
     </html>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, ChangeEvent, FormEvent } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -13,6 +13,12 @@ import Link from "next/link"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useRouter } from "next/navigation"
 
+interface Watchlist {
+  id: string;
+  name: string;
+  description: string | null;
+}
+
 export default function SettingsPage() {
   const { user, signOut } = useAuth()
   const router = useRouter()
@@ -24,7 +30,7 @@ export default function SettingsPage() {
     full_name: user?.user_metadata?.full_name || "",
     avatar_url: user?.user_metadata?.avatar_url || "",
   })
-  const [ownedWatchlists, setOwnedWatchlists] = useState<any[]>([])
+  const [ownedWatchlists, setOwnedWatchlists] = useState<Watchlist[]>([])
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -44,26 +50,37 @@ export default function SettingsPage() {
     setDeletingId(watchlistId)
     const { error } = await supabase.from("watchlists").delete().eq("id", watchlistId)
     if (!error) {
-      setOwnedWatchlists(ownedWatchlists.filter(w => w.id !== watchlistId))
+      setOwnedWatchlists(ownedWatchlists.filter((w: Watchlist) => w.id !== watchlistId))
     }
     setDeletingId(null)
   }
 
-  const handleUpdateProfile = async (e: React.FormEvent) => {
+  const handleUpdateProfile = async (e: FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError(null)
     setSuccess(null)
 
     try {
-      const { error } = await supabase.auth.updateUser({
+      if (!user) throw new Error("User not found")
+      const { error: authError } = await supabase.auth.updateUser({
         data: {
           full_name: formData.full_name,
           avatar_url: formData.avatar_url,
         },
       })
+      if (authError) throw authError
 
-      if (error) throw error
+      // Also update the profiles table
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({
+          full_name: formData.full_name,
+          avatar_url: formData.avatar_url,
+        })
+        .eq("id", user.id)
+
+      if (profileError) throw profileError
 
       setSuccess("Profile updated successfully!")
     } catch (error) {
@@ -136,7 +153,7 @@ export default function SettingsPage() {
                         <Input
                           id="avatar_url"
                           value={formData.avatar_url}
-                          onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, avatar_url: e.target.value })}
                           placeholder="Enter avatar URL"
                           className="bg-background/50 border-border/20 text-foreground placeholder:text-muted-foreground/50"
                         />
@@ -151,7 +168,7 @@ export default function SettingsPage() {
                       <Input
                         id="full_name"
                         value={formData.full_name}
-                        onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, full_name: e.target.value })}
                         placeholder="Enter your full name"
                         className="bg-background/50 border-border/20 text-foreground placeholder:text-muted-foreground/50"
                       />
@@ -185,7 +202,7 @@ export default function SettingsPage() {
                       </div>
                     ) : (
                       <ul className="space-y-4">
-                        {ownedWatchlists.map((w) => (
+                        {ownedWatchlists.map((w: Watchlist) => (
                           <li key={w.id} className="flex items-center justify-between bg-background/30 border border-border/20 rounded-lg p-4">
                             <div>
                               <div className="font-heading text-lg text-primary">{w.name}</div>

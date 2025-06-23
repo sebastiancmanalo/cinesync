@@ -28,6 +28,8 @@ export function DashboardContent() {
   const [recommendations, setRecommendations] = useState<Movie[]>([])
   const [loading, setLoading] = useState(true)
   const [recommendationsLoading, setRecommendationsLoading] = useState(true)
+  const [reviewsByItem, setReviewsByItem] = useState<Record<string, any[]>>({})
+  const [loadingReviews, setLoadingReviews] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     async function fetchData() {
@@ -70,13 +72,43 @@ export function DashboardContent() {
     fetchRecommendations()
   }, [user?.id])
 
+  const fetchReviews = async (watchlistId: string, itemId: string) => {
+    setLoadingReviews((prev) => ({ ...prev, [itemId]: true }))
+    try {
+      const res = await fetch(`/api/watchlists/${watchlistId}/items/${itemId}/reviews`)
+      const data = await res.json()
+      setReviewsByItem((prev) => ({ ...prev, [itemId]: data }))
+    } catch {
+      setReviewsByItem((prev) => ({ ...prev, [itemId]: [] }))
+    } finally {
+      setLoadingReviews((prev) => ({ ...prev, [itemId]: false }))
+    }
+  }
+
+  useEffect(() => {
+    [...ownedWatchlists, ...sharedWatchlists].forEach((wl: any) => {
+      (wl.items || []).forEach((item: any) => {
+        fetchReviews(wl.id, item.id)
+      })
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ownedWatchlists.length, sharedWatchlists.length])
+
+  const getReviewStats = (itemId: string) => {
+    const reviews = reviewsByItem[itemId] || []
+    const watchedCount = reviews.filter(r => r.watched).length
+    const avgRating = reviews.length ? (reviews.reduce((sum, r) => sum + (r.review_rating || 0), 0) / reviews.length) : 0
+    const recentReviews = reviews.filter(r => r.review_text).slice(0, 2)
+    return { watchedCount, avgRating, recentReviews }
+  }
+
   function renderWatchlistSection(title: string, watchlists: Watchlist[]) {
     return (
       <div>
         <h2 className="text-3xl sm:text-4xl font-heading text-primary mb-6">{title}</h2>
         {watchlists.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {watchlists.map(w => <WatchlistCard key={w.id} watchlist={w} />)}
+            {watchlists.map(w => <WatchlistCard key={w.id} watchlist={w} reviewsByItem={reviewsByItem} />)}
           </div>
         ) : (
           <div className="text-center py-12 px-6 border-2 border-border/20 rounded-lg bg-background/50 backdrop-blur-sm">

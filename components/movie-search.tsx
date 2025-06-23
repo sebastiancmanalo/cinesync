@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Search, Plus, Loader2, CheckCircle } from "lucide-react"
+import { Search, Plus, Loader2, CheckCircle, Film, Tv, X } from "lucide-react"
 import Image from "next/image"
 import { useDebounce } from "@/hooks/use-debounce"
 import { getImageUrl, getMediaTitle, getMediaYear } from "@/lib/tmdb"
@@ -16,222 +16,200 @@ import { useRouter } from "next/navigation"
 
 interface MovieSearchProps {
   watchlistId: string
+  onSelect: (movie: TMDBSearchResult) => void
+  onClose: () => void
+  isOpen: boolean
 }
 
-export function MovieSearch({ watchlistId }: MovieSearchProps) {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [searchResults, setSearchResults] = useState<TMDBSearchResult[]>([])
-  const [isSearching, setIsSearching] = useState(false)
-  const [isOpen, setIsOpen] = useState(false)
-  const [addingItems, setAddingItems] = useState<Set<string>>(new Set())
-  const [addedItems, setAddedItems] = useState<Set<string>>(new Set())
-  const [error, setError] = useState("")
-  const debouncedQuery = useDebounce(searchQuery, 300)
+export function MovieSearch({ watchlistId, onSelect, onClose, isOpen }: MovieSearchProps) {
+  const [query, setQuery] = useState("")
+  const [results, setResults] = useState<TMDBSearchResult[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const debouncedQuery = useDebounce(query, 300)
   const router = useRouter()
+  const searchRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const searchMedia = async () => {
-      if (debouncedQuery.length < 2) {
-        setSearchResults([])
+    if (!isOpen) {
+      setQuery("")
+      setResults([])
+      setError(null)
+      return
+    }
+  }, [isOpen])
+
+  useEffect(() => {
+    if (!debouncedQuery || debouncedQuery.trim().length < 2) {
+      setResults([])
         return
       }
 
-      setIsSearching(true)
+    const searchMovies = async () => {
+      setLoading(true)
+      setError(null)
+      
       try {
-        const response = await fetch(`/api/search?query=${encodeURIComponent(debouncedQuery)}`)
-        if (!response.ok) throw new Error("Search failed")
+        const response = await fetch(`/api/search?q=${encodeURIComponent(debouncedQuery)}`)
+        
+        if (!response.ok) {
+          throw new Error("Failed to search")
+        }
+        
         const data = await response.json()
-        setSearchResults(data)
-      } catch (error) {
-        console.error("Search error:", error)
-        setSearchResults([])
+        setResults(data.results || [])
+      } catch (err) {
+        console.error("Search error:", err)
+        setError("Failed to search movies. Please try again.")
+        setResults([])
       } finally {
-        setIsSearching(false)
+        setLoading(false)
       }
     }
 
-    searchMedia()
+    searchMovies()
   }, [debouncedQuery])
 
-  const handleAddToWatchlist = async (movie: TMDBSearchResult) => {
-    const itemKey = `${movie.media_type}-${movie.id}`
-    setAddingItems((prev) => new Set([...prev, itemKey]))
-    setError("")
-
-    try {
-      const response = await fetch(`/api/watchlists/${watchlistId}/items`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          movieId: movie.id,
-          mediaType: movie.media_type
-        })
-      })
-
-      if (response.ok) {
-        setAddedItems((prev) => new Set([...prev, itemKey]))
-        // Remove from search results after a delay
-        setTimeout(() => {
-          setSearchResults((prev) => prev.filter((item) => `${item.media_type}-${item.id}` !== itemKey))
-        }, 1000)
-        
-        // Refresh the page data
-        router.refresh()
-      } else {
-        const errorData = await response.json()
-        setError(errorData.error || "Failed to add item")
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        onClose()
       }
-    } catch (error: any) {
-      setError(error.message || "Failed to add item")
-    } finally {
-      setAddingItems((prev) => {
-        const newSet = new Set(prev)
-        newSet.delete(itemKey)
-        return newSet
-      })
     }
-  }
 
-  const resetDialog = () => {
-    setSearchQuery("")
-    setSearchResults([])
-    setAddedItems(new Set())
-    setError("")
-  }
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [isOpen, onClose])
+
+  const handleSelect = (movie: TMDBSearchResult) => {
+    onSelect(movie)
+    onClose()
+    }
+
+  if (!isOpen) return null
 
   return (
-    <Dialog
-      open={isOpen}
-      onOpenChange={(open) => {
-        setIsOpen(open)
-        if (!open) resetDialog()
-      }}
-    >
-      <DialogTrigger asChild>
-        <Button className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black font-medium">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Movie/Show
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div 
+        ref={searchRef}
+        className="bg-background rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <h2 className="text-xl font-semibold">Search Movies & TV Shows</h2>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            className="h-8 w-8 p-0"
+          >
+            <X className="h-4 w-4" />
         </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col bg-white/95 border border-gray-200 shadow-xl">
-        <DialogHeader>
-          <DialogTitle className="bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">Add Movies & TV Shows</DialogTitle>
-        </DialogHeader>
+        </div>
 
-        <div className="flex-1 overflow-hidden flex flex-col">
-          {error && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
+        {/* Search Input */}
+        <div className="p-4 border-b border-border">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="Search for movies or TV shows..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="pl-10"
+              autoFocus
+            />
+          </div>
+        </div>
+
+        {/* Results */}
+        <div className="flex-1 overflow-y-auto max-h-[60vh]">
+          {loading && (
+            <div className="flex items-center justify-center p-8">
+              <Loader2 className="h-6 w-6 animate-spin" />
+              <span className="ml-2">Searching...</span>
+            </div>
           )}
 
-          {/* Search Input */}
-          <div className="flex gap-2 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                placeholder="Search for movies and TV shows..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-white/95 text-gray-900 border-gray-300"
-              />
-              {isSearching && (
-                <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
-              )}
+          {error && (
+            <div className="p-4 text-center text-red-500">
+              {error}
             </div>
-          </div>
+          )}
 
-          {/* Search Results */}
-          <div className="flex-1 overflow-y-auto">
-            {searchResults.length > 0 ? (
-              <div className="space-y-4">
-                {searchResults.map((item) => {
-                  const itemKey = `${item.media_type}-${item.id}`
-                  const isAdding = addingItems.has(itemKey)
-                  const isAdded = addedItems.has(itemKey)
-                  const title = getMediaTitle(item)
-                  const year = getMediaYear(item)
+          {!loading && !error && results.length === 0 && query && (
+            <div className="p-4 text-center text-muted-foreground">
+              No results found for "{query}"
+            </div>
+          )}
 
-                  return (
-                    <Card key={itemKey} className="hover:shadow-md transition-shadow bg-white/95 border border-gray-200">
-                      <CardContent className="p-4">
-                        <div className="flex gap-4">
-                          {/* Poster */}
+          {!loading && !error && results.length > 0 && (
+            <div className="p-4 space-y-3">
+              {results.map((movie) => (
+                <Card 
+                  key={`${movie.media_type}-${movie.id}`}
+                  className="cursor-pointer hover:bg-accent/50 transition-colors"
+                  onClick={() => handleSelect(movie)}
+                >
+                  <CardContent className="p-3">
+                    <div className="flex gap-3">
                           <div className="flex-shrink-0">
-                            <Image
-                              src={getImageUrl(item.poster_path || "", "w200")}
-                              alt={title}
-                              width={60}
-                              height={90}
-                              className="rounded-lg object-cover bg-gray-100"
+                        <img
+                          src={getImageUrl(movie.poster_path || '', 'w200')}
+                          alt={getMediaTitle(movie)}
+                          className="w-16 h-24 object-cover rounded"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement
+                            target.src = '/placeholder.svg'
+                          }}
                             />
                           </div>
-
-                          {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between mb-2">
-                              <div>
-                                <h3 className="font-semibold text-gray-900 mb-1">
-                                  {title} {year && `(${year})`}
+                            <h3 className="font-medium truncate">
+                              {getMediaTitle(movie)}
                                 </h3>
-                                <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
-                                  <Badge variant="outline" className="text-xs text-gray-900 border-gray-300">
-                                    {item.media_type === "movie" ? "Movie" : "TV Show"}
-                                  </Badge>
-                                </div>
-                              </div>
-                              <Button
-                                size="sm"
-                                onClick={() => handleAddToWatchlist(item)}
-                                disabled={isAdding || isAdded}
-                                className={
-                                  isAdded
-                                    ? "bg-green-500 hover:bg-green-600 text-white"
-                                    : "bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black font-medium border border-gray-300"
-                                }
-                              >
-                                {isAdding ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : isAdded ? (
-                                  <>
-                                    <CheckCircle className="w-4 h-4 mr-1" />
-                                    Added
-                                  </>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge variant="secondary" className="text-xs">
+                                {movie.media_type === 'movie' ? (
+                                  <Film className="w-3 h-3 mr-1" />
                                 ) : (
-                                  <>
-                                    <Plus className="w-4 h-4 mr-1" />
-                                    Add
-                                  </>
+                                  <Tv className="w-3 h-3 mr-1" />
                                 )}
-                              </Button>
+                                {movie.media_type === 'movie' ? 'Movie' : 'TV'}
+                                  </Badge>
+                              {getMediaYear(movie) && (
+                                <span className="text-sm text-muted-foreground">
+                                  {getMediaYear(movie)}
+                                </span>
+                              )}
+                              {movie.vote_average > 0 && (
+                                <span className="text-sm text-muted-foreground">
+                                  ⭐ {movie.vote_average.toFixed(1)}
+                                </span>
+                              )}
                             </div>
-
-                            {item.overview && (
-                              <p className="text-sm text-gray-600 mb-3 line-clamp-2">{item.overview}</p>
+                          </div>
+                        </div>
+                        {movie.overview && (
+                          <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+                            {movie.overview}
+                          </p>
                             )}
                           </div>
                         </div>
                       </CardContent>
                     </Card>
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-500">
-                  {searchQuery
-                    ? isSearching
-                      ? "Searching..."
-                      : "No results found. Try a different search term."
-                    : "Search for movies and TV shows to add to your watchlist."}
-                </p>
+              ))}
               </div>
             )}
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+    </div>
   )
 }

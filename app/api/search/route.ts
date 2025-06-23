@@ -1,5 +1,5 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { searchMoviesAndTVServer } from "@/lib/tmdb-server"
+import { NextRequest, NextResponse } from 'next/server'
+import { searchMoviesAndTVServer } from '@/lib/tmdb-server'
 
 // Mock data for when TMDB API is not available
 const mockSearchResults = [
@@ -34,31 +34,23 @@ const mockSearchResults = [
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
-  const query = searchParams.get("query")
+  const query = searchParams.get('q')
 
-  if (!query) {
-    return NextResponse.json({ error: "Query parameter is required" }, { status: 400 })
+  if (!query || query.trim().length === 0) {
+    return NextResponse.json({ error: 'Query parameter is required' }, { status: 400 })
   }
 
   try {
-    const results = await searchMoviesAndTVServer(query)
-
-    // If no results from TMDB (possibly due to missing API key), return mock data
-    if (results.length === 0) {
-      const filteredMockResults = mockSearchResults.filter((item) =>
-        (item.title || item.name)?.toLowerCase().includes(query.toLowerCase()),
-      )
-      return NextResponse.json(filteredMockResults)
-    }
-
-    return NextResponse.json(results)
+    const results = await searchMoviesAndTVServer(query.trim())
+    
+    return NextResponse.json({
+      results: results.slice(0, 10) // Limit to 10 results for better UX
+    })
   } catch (error) {
-    console.error("Search error:", error)
-
-    // Fallback to mock data on error
-    const filteredMockResults = mockSearchResults.filter((item) =>
-      (item.title || item.name)?.toLowerCase().includes(query.toLowerCase()),
+    console.error('Error in search API:', error)
+    return NextResponse.json(
+      { error: 'Failed to search movies' },
+      { status: 500 }
     )
-    return NextResponse.json(filteredMockResults)
   }
 }

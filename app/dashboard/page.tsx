@@ -34,13 +34,13 @@ export default function DashboardPage() {
     const [recommendations, setRecommendations] = useState<Movie[]>([])
     const [ownedWatchlists, setOwnedWatchlists] = useState<Watchlist[]>([])
     const [sharedWatchlists, setSharedWatchlists] = useState<Watchlist[]>([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-    useEffect(() => {
+  useEffect(() => {
         const fetchData = async () => {
             try {
-                setLoading(true)
+      setLoading(true)
                 
                 // Fetch all dashboard data from our simple API
                 const response = await fetch('/api/dashboard')
@@ -56,11 +56,11 @@ export default function DashboardPage() {
             } catch (err) {
                 setError("Failed to load dashboard data. Please try again later.")
                 console.error(err)
-            } finally {
-                setLoading(false)
-            }
-        }
-        
+    } finally {
+      setLoading(false)
+    }
+  }
+
         fetchData()
     }, [])
 
@@ -71,46 +71,46 @@ export default function DashboardPage() {
         return <DashboardSkeleton />
     }
 
-    if (error) {
-        return (
+      if (error) {
+    return (
             <div className="flex items-center justify-center min-h-screen bg-background text-foreground">
-                <div className="text-center">
+          <div className="text-center">
                     <h2 className="text-2xl font-heading">Something went wrong</h2>
                     <p className="text-muted-foreground">{error}</p>
                     <Button onClick={() => window.location.reload()} className="mt-4">Try Again</Button>
-                </div>
-            </div>
-        )
-    }
+          </div>
+        </div>
+    )
+  }
 
-    return (
-        <ProtectedRoute>
+  return (
+    <ProtectedRoute>
             <div className="bg-background min-h-screen text-foreground font-sans">
-                {/* Header */}
+        {/* Header */}
                 <header className="fixed top-0 left-0 w-full bg-gradient-to-b from-black/80 to-transparent z-50 transition-all duration-300">
                     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                        <div className="flex items-center justify-between">
-                            <Link href="/" className="flex items-center gap-2">
+            <div className="flex items-center justify-between">
+                <Link href="/" className="flex items-center gap-2">
                                 <Film className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
                                 <span className="text-2xl sm:text-4xl font-logo tracking-wider">
                                     CineSync
-                                </span>
-                            </Link>
+                  </span>
+                </Link>
                             <div className="flex items-center gap-2 sm:gap-4">
                                 <Button asChild variant="ghost" size="icon" className="hover:bg-primary/20 hover:text-primary">
                                     <Link href="/lists/new">
                                         <PlusCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                                     </Link>
-                                </Button>
+                </Button>
                                 <Button asChild variant="ghost" size="icon" className="hover:bg-primary/20 hover:text-primary">
                                     <Link href="/settings">
                                         <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
                                     </Link>
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-                </header>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </header>
 
                 <main>
                     {/* Hero Section */}
@@ -132,8 +132,8 @@ export default function DashboardPage() {
                                     <div className="flex items-center gap-1 text-yellow-400">
                                         <Star className="w-4 h-4 sm:w-5 sm:h-5" />
                                         <span className="font-bold text-base sm:text-lg">{heroMovie.vote_average.toFixed(1)}</span>
-                                    </div>
-                                </div>
+                        </div>
+                      </div>
                                 <p className="text-sm sm:text-lg text-gray-300 font-sans line-clamp-2 sm:line-clamp-3 mb-4 sm:mb-6" style={{ textShadow: '1px 1px 4px rgba(0,0,0,0.8)' }}>
                                     {heroMovie.overview}
                                 </p>
@@ -141,7 +141,7 @@ export default function DashboardPage() {
                                     <PlayCircle className="w-5 h-5 sm:w-6 sm:h-6 mr-2" />
                                     Watch Trailer
                                 </Button>
-                            </div>
+                      </div>
                         </section>
                     )}
 
@@ -194,17 +194,17 @@ export default function DashboardPage() {
                                     {recommendations.map(movie => (
                                         <RecommendationCard key={movie.id} movie={movie} />
                                     ))}
-                                </div>
+                              </div>
                             ) : (
                                 <div className="text-center py-8 sm:py-12 px-4 sm:px-6 bg-secondary/20 rounded-lg">
                                     <h3 className="text-lg sm:text-xl font-semibold">No recommendations available right now.</h3>
                                     <p className="text-muted-foreground mt-2 text-sm sm:text-base">Add some movies to your watchlists to get personalized recommendations.</p>
-                                </div>
-                            )}
+                  </div>
+                )}
                         </section>
                     </div>
                 </main>
-            </div>
+              </div>
         </ProtectedRoute>
     )
 }
@@ -220,13 +220,13 @@ const WatchlistCard = ({ watchlist }: { watchlist: Watchlist }) => (
                 <div className="flex items-center gap-1 sm:gap-2">
                     <ListVideo className="w-4 h-4 sm:w-5 sm:h-5" />
                     <span>{watchlist.item_count} items</span>
-                </div>
+                          </div>
                 <div className="flex items-center gap-1 sm:gap-2">
                     <Users2 className="w-4 h-4 sm:w-5 sm:h-5" />
                     <span>{watchlist.member_count} members</span>
-                </div>
-            </div>
-        </div>
+                          </div>
+                        </div>
+                    </div>
     </Link>
 );
 
@@ -235,7 +235,7 @@ const RecommendationCard = ({ movie }: { movie: Movie }) => (
         <div className="relative overflow-hidden rounded-lg shadow-lg">
             <img
                 src={movie.poster_path ? `${TMDB_IMAGE_BASE_URL}w500${movie.poster_path}` : "/placeholder.svg"}
-                alt={movie.title}
+                              alt={movie.title}
                 className="w-full h-auto object-cover transition-transform duration-300 group-hover:scale-105"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
@@ -246,11 +246,11 @@ const RecommendationCard = ({ movie }: { movie: Movie }) => (
                     <span>{movie.vote_average.toFixed(1)}</span>
                 </div>
             </div>
-        </div>
+                          </div>
         <div className="mt-2 sm:mt-3">
             <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 sm:line-clamp-3">{movie.overview}</p>
-        </div>
-    </div>
+                          </div>
+                        </div>
 );
 
 const DashboardSkeleton = () => (
@@ -280,7 +280,7 @@ const DashboardSkeleton = () => (
                 <div className="h-4 sm:h-5 w-full bg-gray-400/30 rounded-lg mb-1 sm:mb-2"></div>
                 <div className="h-4 sm:h-5 w-3/4 bg-gray-400/30 rounded-lg mb-4 sm:mb-6"></div>
                 <div className="h-12 sm:h-16 w-32 sm:w-48 bg-primary/50 rounded-lg"></div>
-            </div>
+          </div>
         </section>
 
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-16">
@@ -291,7 +291,7 @@ const DashboardSkeleton = () => (
                     {[...Array(3)].map((_, i) => (
                         <div key={i} className="bg-secondary/20 p-4 sm:p-6 rounded-xl h-32 sm:h-40"></div>
                     ))}
-                </div>
+        </div>
             </section>
             {/* Recommendations Skeleton */}
             <section className="mt-12 sm:mt-16">
@@ -302,10 +302,10 @@ const DashboardSkeleton = () => (
                             <div className="w-full aspect-[2/3] bg-secondary/20 rounded-lg"></div>
                             <div className="h-3 sm:h-4 w-3/4 bg-gray-400/30 rounded-lg mt-2 sm:mt-3"></div>
                             <div className="h-3 sm:h-4 w-1/2 bg-gray-400/30 rounded-lg mt-1 sm:mt-2"></div>
-                        </div>
+              </div>
                     ))}
-                </div>
+              </div>
             </section>
-        </div>
-    </div>
+            </div>
+      </div>
 );

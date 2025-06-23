@@ -13,6 +13,7 @@ export interface TMDBSearchResult {
   runtime?: number
   number_of_episodes?: number
   number_of_seasons?: number
+  vote_average: number
 }
 
 export interface TMDBMovieDetails {
@@ -80,8 +81,8 @@ export function formatRuntime(minutes: number): string {
 }
 
 export function getMediaTitle(item: TMDBSearchResult | TMDBMovieDetails | TMDBTVDetails): string {
-  if ("title" in item) return item.title
-  if ("name" in item) return item.name
+  if ("title" in item && item.title) return item.title
+  if ("name" in item && item.name) return item.name
   return "Unknown Title"
 }
 
