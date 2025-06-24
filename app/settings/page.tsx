@@ -46,6 +46,30 @@ export default function SettingsPage() {
     fetchOwnedWatchlists()
   }, [user?.id])
 
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user?.id) return
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("full_name, avatar_url")
+        .eq("id", user.id)
+        .single()
+      if (!error && data) {
+        setFormData({
+          full_name: data.full_name || "",
+          avatar_url: data.avatar_url || "",
+        })
+      } else {
+        // fallback to auth context if no profile data
+        setFormData({
+          full_name: user?.user_metadata?.full_name || "",
+          avatar_url: user?.user_metadata?.avatar_url || "",
+        })
+      }
+    }
+    fetchProfile()
+  }, [user?.id])
+
   const handleDeleteWatchlist = async (watchlistId: string) => {
     if (!confirm("Are you sure you want to delete this watchlist? This action cannot be undone.")) return
     setDeletingId(watchlistId)
