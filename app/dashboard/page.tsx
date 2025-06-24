@@ -214,7 +214,7 @@ const WatchlistCard = ({ watchlist }: { watchlist: Watchlist }) => (
         <div className="bg-gradient-to-br from-secondary/30 to-secondary/10 p-4 sm:p-6 rounded-xl border-2 border-transparent group-hover:border-primary transition-all duration-300 h-full flex flex-col justify-between shadow-lg">
             <div>
                 <h3 className="text-lg sm:text-2xl font-heading text-primary group-hover:text-yellow-300 transition-colors mb-2 sm:mb-3">{watchlist.name}</h3>
-                <p className="text-muted-foreground text-sm sm:text-base font-sans line-clamp-2">{watchlist.description}</p>
+                <p className="text-muted-foreground text-sm sm:text-base font-sans whitespace-pre-line line-clamp-2">{watchlist.description}</p>
             </div>
             <div className="flex items-center gap-4 sm:gap-6 mt-4 sm:mt-6 text-xs sm:text-sm text-muted-foreground font-sans">
                 <div className="flex items-center gap-1 sm:gap-2">

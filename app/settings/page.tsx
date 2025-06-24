@@ -207,7 +207,7 @@ export default function SettingsPage() {
                           <li key={w.id} className="flex items-center justify-between bg-background/30 border border-border/20 rounded-lg p-4">
                             <div>
                               <div className="font-heading text-lg text-primary">{w.name}</div>
-                              {w.description && <div className="text-sm font-sans text-muted-foreground mt-1">{w.description}</div>}
+                              {w.description && <div className="text-sm font-sans text-muted-foreground mt-1 whitespace-pre-line">{w.description}</div>}
                             </div>
                             <TooltipProvider>
                               <Tooltip>

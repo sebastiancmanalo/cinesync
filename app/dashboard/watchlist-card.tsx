@@ -20,7 +20,7 @@ export function WatchlistCard({ watchlist, reviewsByItem }: WatchlistCardProps) 
             </CardTitle>
           </div>
           {watchlist.description && (
-            <CardDescription className="text-gray-600">
+            <CardDescription className="text-gray-600 whitespace-pre-line">
               {watchlist.description}
             </CardDescription>
           )}

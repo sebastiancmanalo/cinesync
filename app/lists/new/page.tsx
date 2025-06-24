@@ -88,26 +88,26 @@ export default function NewWatchlistPage() {
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
                   <div>
-                    <Label htmlFor="name" className="text-lg font-semibold">Watchlist Name *</Label>
+                    <Label htmlFor="name" className="font-sans text-lg font-semibold">Watchlist Name *</Label>
                   <Input
                     id="name"
                     value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      placeholder="Enter watchlist name"
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Enter watchlist name"
                     required
-                      className="bg-background border-2 border-border/20 focus:border-primary text-foreground text-lg py-3"
+                    className="font-sans bg-background border-2 border-border/20 focus:border-primary text-foreground"
                   />
                 </div>
 
                   <div>
-                    <Label htmlFor="description" className="text-lg font-semibold">Description (Optional)</Label>
+                    <Label htmlFor="description" className="font-sans text-lg font-semibold">Description (Optional)</Label>
                   <Textarea
                     id="description"
                     value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      placeholder="Describe your watchlist..."
-                      rows={4}
-                      className="bg-background border-2 border-border/20 focus:border-primary text-foreground text-lg"
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="Describe your watchlist..."
+                    rows={4}
+                    className="font-sans bg-background border-2 border-border/20 focus:border-primary text-foreground"
                   />
                 </div>
 
@@ -121,15 +121,17 @@ export default function NewWatchlistPage() {
                     <Button
                       type="button"
                       variant="outline"
+                      size="default"
                       onClick={() => router.push('/dashboard')}
-                      className="bg-secondary/20 border-2 border-border/20 hover:bg-secondary/40 text-foreground font-semibold px-8 py-3"
+                      className="font-sans bg-secondary/20 border-2 border-border/20 hover:bg-secondary/40 text-foreground font-medium"
                     >
                       Cancel
                     </Button>
                   <Button
                     type="submit"
+                      size="default"
                     disabled={loading || !formData.name.trim()}
-                      className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-8 py-3 text-lg"
+                      className="font-sans bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
                   >
                       {loading ? 'Creating...' : 'Create Watchlist'}
                   </Button>

@@ -458,7 +458,7 @@ export function WatchlistContent({ initialWatchlist: watchlist }: WatchlistConte
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-24">
         <div className="mb-8">
           <h1 className="text-3xl sm:text-5xl font-heading font-bold mb-2">{watchlist.name}</h1>
-          <p className="text-muted-foreground text-lg mb-2">{watchlist.description || "No description."}</p>
+          <p className="text-muted-foreground text-lg mb-2 whitespace-pre-line">{watchlist.description || "No description."}</p>
           {watchlist.created_at && (
             <p className="text-xs text-muted-foreground mb-4">Created {new Date(watchlist.created_at).toLocaleDateString()}</p>
           )}
