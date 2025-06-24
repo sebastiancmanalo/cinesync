@@ -15,6 +15,7 @@ interface Movie {
     poster_path?: string;
     backdrop_path?: string;
     vote_average: number;
+    trailer?: string;
 }
 
 // Watchlist interface
@@ -83,6 +84,19 @@ export default function DashboardPage() {
     )
   }
 
+  const getHeroBackground = (movie: any) => {
+    if (movie?.backdrop_path) {
+      return `linear-gradient(to right, rgba(20,20,20,0.85) 40%, rgba(20,20,20,0.6) 100%), url(https://image.tmdb.org/t/p/original${movie.backdrop_path})`;
+    }
+    if (movie?.poster_path) {
+      return `linear-gradient(to right, rgba(20,20,20,0.85) 40%, rgba(20,20,20,0.6) 100%), url(https://image.tmdb.org/t/p/original${movie.poster_path})`;
+    }
+    if (movie?.trailer) {
+      return `linear-gradient(to right, rgba(20,20,20,0.85) 40%, rgba(20,20,20,0.6) 100%), url(https://img.youtube.com/vi/${movie.trailer}/maxresdefault.jpg)`;
+    }
+    return 'linear-gradient(to right, rgba(20,20,20,0.85) 40%, rgba(20,20,20,0.6) 100%), url(/placeholder.jpg)';
+  };
+
   return (
     <ProtectedRoute>
             <div className="bg-background min-h-screen text-foreground font-sans">
@@ -113,19 +127,26 @@ export default function DashboardPage() {
         </header>
 
                 <main>
-                    {/* Hero Section */}
+                    {/* Hero Section with Dynamic Movie Background */}
                     {heroMovie && (
-                        <section
-                            className="h-[60vh] sm:h-[70vh] flex items-end justify-start text-white p-4 sm:p-8 relative bg-cover bg-center"
+                      <div
+                        className="relative w-full h-[400px] sm:h-[500px] flex items-center pt-24 pb-16"
                             style={{
-                                backgroundImage: `linear-gradient(to top, rgba(19,15,12,1) 0%, rgba(19,15,12,0) 50%), url(${TMDB_IMAGE_BASE_URL}original${heroMovie.backdrop_path})`,
+                          backgroundImage: getHeroBackground(heroMovie),
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          backgroundRepeat: 'no-repeat',
                             }}
                         >
-                            <div className="z-10 max-w-2xl">
+                        <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8">
+                          <div className="max-w-2xl">
                                 <h2 className="text-lg sm:text-2xl font-sans text-yellow-300 mb-2 sm:mb-4" style={{ textShadow: '2px 2px 8px rgba(0,0,0,0.7)' }}>
                                     Welcome, {userName}
                                 </h2>
-                                <h1 className="text-3xl sm:text-6xl font-heading text-white shadow-lg mb-2 sm:mb-4" style={{ textShadow: '2px 2px 8px rgba(0,0,0,0.7)' }}>
+                                <h1
+                                  className="text-4xl sm:text-6xl font-heading font-bold text-white mb-4"
+                                  style={{ border: 'none', background: 'none', boxShadow: 'none', textDecoration: 'none' }}
+                                >
                                     {heroMovie.title}
                                 </h1>
                                 <div className="flex items-center gap-2 sm:gap-4 mb-2 sm:mb-4">
@@ -137,12 +158,26 @@ export default function DashboardPage() {
                                 <p className="text-sm sm:text-lg text-gray-300 font-sans line-clamp-2 sm:line-clamp-3 mb-4 sm:mb-6" style={{ textShadow: '1px 1px 4px rgba(0,0,0,0.8)' }}>
                                     {heroMovie.overview}
                                 </p>
-                                <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-base sm:text-lg py-3 sm:py-6 px-6 sm:px-8">
+                            <Button 
+                              size="lg" 
+                              className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-base sm:text-lg py-3 sm:py-6 px-6 sm:px-8"
+                              onClick={() => {
+                                if (heroMovie?.trailer) {
+                                  window.open(`https://www.youtube.com/watch?v=${heroMovie.trailer}`, '_blank')
+                                }
+                              }}
+                              disabled={!heroMovie?.trailer}
+                            >
                                     <PlayCircle className="w-5 h-5 sm:w-6 sm:h-6 mr-2" />
                                     Watch Trailer
                                 </Button>
+                          </div>
+                          {/* Optional: add a fallback solid background if no image at all */}
+                          {!(heroMovie.backdrop_path || heroMovie.poster_path || heroMovie.trailer) && (
+                            <div className="absolute inset-0 bg-gradient-to-r from-black/90 to-black/60" />
+                          )}
+                        </div>
                       </div>
-                        </section>
                     )}
 
                     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-16">
@@ -214,7 +249,7 @@ const WatchlistCard = ({ watchlist }: { watchlist: Watchlist }) => (
         <div className="bg-gradient-to-br from-secondary/30 to-secondary/10 p-4 sm:p-6 rounded-xl border-2 border-transparent group-hover:border-primary transition-all duration-300 h-full flex flex-col justify-between shadow-lg">
             <div>
                 <h3 className="text-lg sm:text-2xl font-heading text-primary group-hover:text-yellow-300 transition-colors mb-2 sm:mb-3">{watchlist.name}</h3>
-                <p className="text-muted-foreground text-sm sm:text-base font-sans whitespace-pre-line line-clamp-2">{watchlist.description}</p>
+                <p className="text-muted-foreground text-sm sm:text-base font-sans line-clamp-2 whitespace-pre-line">{watchlist.description}</p>
             </div>
             <div className="flex items-center gap-4 sm:gap-6 mt-4 sm:mt-6 text-xs sm:text-sm text-muted-foreground font-sans">
                 <div className="flex items-center gap-1 sm:gap-2">

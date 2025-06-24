@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getMovieVideosServer } from '@/lib/tmdb-server'
 
 export async function GET() {
   try {
@@ -90,6 +91,7 @@ export async function GET() {
           title,
           overview,
           poster_path,
+          backdrop_path,
           release_date,
           runtime,
           vote_average,
@@ -101,80 +103,98 @@ export async function GET() {
 
     if (ownedItemsError) throw ownedItemsError
 
-    // Fetch movies from shared watchlists (where user is a member, not owner)
-    let sharedWatchlistsWithItems: any[] = []
-    if (sharedWatchlistIds.length > 0) {
-      const { data: sharedItems, error: sharedItemsError } = await supabase
-        .from('watchlists')
-        .select(`
+    // Fetch movies from shared watchlists
+    const { data: sharedWatchlistsWithItems, error: sharedItemsError } = await supabase
+      .from('watchlists')
+      .select(`
+        id,
+        name,
+        watchlist_items (
           id,
-          name,
-          watchlist_items (
-            id,
-            movie_id,
-            title,
-            overview,
-            poster_path,
-            release_date,
-            runtime,
-            vote_average,
-            genres,
-            media_type
-          )
-        `)
-        .in('id', sharedWatchlistIds)
+          movie_id,
+          title,
+          overview,
+          poster_path,
+          backdrop_path,
+          release_date,
+          runtime,
+          vote_average,
+          genres,
+          media_type
+        )
+      `)
+      .in('id', sharedWatchlistIds)
 
-      if (sharedItemsError) throw sharedItemsError
-      sharedWatchlistsWithItems = sharedItems || []
-    }
+    if (sharedItemsError) throw sharedItemsError
 
     // Combine all items from both owned and shared watchlists
-    const allItems = [
-      ...(ownedWatchlistsWithItems || []).flatMap((w: any) => w.watchlist_items || []),
-      ...sharedWatchlistsWithItems.flatMap((w: any) => w.watchlist_items || [])
-    ]
+    const allItems: any[] = []
+    
+    // Add items from owned watchlists
+    if (ownedWatchlistsWithItems) {
+      ownedWatchlistsWithItems.forEach(watchlist => {
+        if (watchlist.watchlist_items) {
+          allItems.push(...watchlist.watchlist_items)
+        }
+      })
+    }
+    
+    // Add items from shared watchlists
+    if (sharedWatchlistsWithItems) {
+      sharedWatchlistsWithItems.forEach(watchlist => {
+        if (watchlist.watchlist_items) {
+          allItems.push(...watchlist.watchlist_items)
+        }
+      })
+    }
 
     // Fetch all reviews for these items by the current user
-    const itemIds = allItems.map((item: any) => item.id)
-    let userReviews: any[] = []
-    if (itemIds.length > 0) {
-      const { data: reviews, error: reviewsError } = await supabase
-        .from('watchlist_item_reviews')
-        .select('watchlist_item_id, watched')
-        .in('watchlist_item_id', itemIds)
-        .eq('user_id', user.id)
-      if (reviewsError) throw reviewsError
-      userReviews = reviews
-    }
+    const itemIds = allItems.map(item => item.id)
+    const { data: userReviews, error: reviewsError } = await supabase
+      .from('watchlist_item_reviews')
+      .select('watchlist_item_id, watched')
+      .eq('user_id', user.id)
+      .in('watchlist_item_id', itemIds)
+
+    if (reviewsError) throw reviewsError
 
     // Build a set of watched item IDs
     const watchedItemIds = new Set(
-      userReviews.filter(r => r.watched === true).map(r => r.watchlist_item_id)
+      userReviews
+        ?.filter(review => review.watched === true)
+        .map(review => review.watchlist_item_id) || []
     )
 
-    // Filter for items the user has NOT watched
+    // Filter for unwatched items
     const unwatchedItems = allItems.filter(item => !watchedItemIds.has(item.id))
 
-    // Shuffle and pick up to 5 random unwatched items
-    function shuffle(array: any[]) {
-      for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1))
-        ;[array[i], array[j]] = [array[j], array[i]]
-      }
-      return array
-    }
-    const randomUnwatched = shuffle([...unwatchedItems]).slice(0, 5)
-    const recommendations = randomUnwatched.map(item => ({
+    // Shuffle and take up to 5 recommendations
+    const shuffled = unwatchedItems.sort(() => 0.5 - Math.random())
+    let recommendations = shuffled.slice(0, 5).map(item => ({
       id: item.movie_id,
       title: item.title,
       overview: item.overview,
       poster_path: item.poster_path,
+      backdrop_path: item.backdrop_path,
       release_date: item.release_date,
       runtime: item.runtime,
       vote_average: item.vote_average,
-      genres: item.genres || [],
-      reason: 'Not watched yet!'
+      genres: item.genres,
+      reason: "Not watched yet!",
+      trailer: null as string | null
     }))
+
+    // Fetch trailer for the first recommendation if it exists
+    if (recommendations.length > 0) {
+      const firstMovie = recommendations[0]
+      const videos = await getMovieVideosServer(firstMovie.id)
+      let trailerKey = null
+      if (videos && Array.isArray(videos.results)) {
+        const trailer = videos.results.find((v: any) => v.type === 'Trailer' && v.site === 'YouTube')
+        trailerKey = trailer ? trailer.key : null
+      }
+      recommendations[0] = { ...firstMovie, trailer: trailerKey }
+    }
 
     const response = {
       recommendations,

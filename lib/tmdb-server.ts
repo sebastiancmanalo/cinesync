@@ -70,3 +70,21 @@ export async function getTVDetailsServer(id: number) {
     return null
   }
 }
+
+export async function getMovieVideosServer(id: number) {
+  if (!TMDB_API_KEY) {
+    console.error("TMDB API key not configured")
+    return null
+  }
+
+  try {
+    const response = await fetch(`${TMDB_BASE_URL}/movie/${id}/videos?api_key=${TMDB_API_KEY}`)
+    if (!response.ok) {
+      throw new Error("Failed to fetch movie videos")
+    }
+    return await response.json()
+  } catch (error) {
+    console.error("Error fetching movie videos:", error)
+    return null
+  }
+}
