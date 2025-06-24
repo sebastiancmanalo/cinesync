@@ -365,10 +365,16 @@ export function WatchlistContent({ initialWatchlist: watchlist }: WatchlistConte
     setLeavingWatchlist(true);
     try {
       const res = await fetch(`/api/watchlists/${watchlist.id}/members`, { method: "DELETE" });
-      if (!res.ok) throw new Error((await res.json()).error || "Failed to leave watchlist");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        console.error('Leave watchlist error:', data);
+        toast({ title: "Error", description: data.error || "Failed to leave watchlist", variant: "destructive" });
+        return;
+      }
       toast({ title: "Left watchlist" });
       router.push("/dashboard");
     } catch (e) {
+      console.error('Leave watchlist exception:', e);
       toast({ title: "Error", description: (e as Error).message, variant: "destructive" });
     } finally {
       setLeavingWatchlist(false);
@@ -422,7 +428,7 @@ export function WatchlistContent({ initialWatchlist: watchlist }: WatchlistConte
                     <Button variant="ghost" size="icon" className="hover:bg-primary/20 hover:text-primary">
                       <Pencil className="w-5 h-5" />
                       <span className="sr-only">Watchlist Actions</span>
-              </Button>
+                    </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="font-sans">
                     <DropdownMenuItem className="font-sans" onClick={() => setEditDialogOpen(true)}>Edit name & description</DropdownMenuItem>
@@ -440,7 +446,9 @@ export function WatchlistContent({ initialWatchlist: watchlist }: WatchlistConte
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="font-sans">
-                    <DropdownMenuItem className="text-red-600 font-sans" onClick={() => setConfirmLeaveOpen(true)}>Leave watchlist</DropdownMenuItem>
+                    <DropdownMenuItem className="text-red-600 font-sans" onClick={() => setConfirmLeaveOpen(true)}>
+                      Leave watchlist
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
