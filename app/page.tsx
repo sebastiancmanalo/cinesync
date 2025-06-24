@@ -85,7 +85,7 @@ export default function LandingPage() {
               <Link href="/login">Sign In</Link>
             </Button>
             <Button asChild className="bg-primary text-black font-bold hover:bg-primary/90">
-              <Link href="/login">Get Started</Link>
+              <Link href="/signup">Get Started</Link>
             </Button>
           </div>
         </div>
@@ -102,7 +102,7 @@ export default function LandingPage() {
             Create shared watchlists, discover films, and discuss your favorites with friends and family. Your next movie night, perfected.
           </p>
           <Button asChild size="lg" className="bg-primary text-black font-bold text-lg px-8 py-6 hover:bg-primary/90">
-            <Link href="/login">Start Watching Together</Link>
+            <Link href="/signup">Start Watching Together</Link>
           </Button>
         </div>
       </section>
