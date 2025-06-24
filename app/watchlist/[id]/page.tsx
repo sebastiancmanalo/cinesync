@@ -10,6 +10,8 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
 
 interface WatchlistPageProps {
   params: Promise<{
@@ -90,22 +92,6 @@ export default async function WatchlistPage({ params }: WatchlistPageProps) {
 function WatchlistSkeleton() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-        {/* Header */}
-      <header className="bg-gradient-to-b from-black/80 to-transparent">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-primary/20 rounded-full"></div>
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-primary/50 rounded-full"></div>
-                <div className="w-32 h-8 bg-primary/50 rounded"></div>
-              </div>
-            </div>
-            <div className="w-10 h-10 bg-primary/20 rounded-full"></div>
-            </div>
-          </div>
-        </header>
-
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16">
         {/* Watchlist Header Skeleton */}
         <div className="mb-12">

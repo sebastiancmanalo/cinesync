@@ -38,6 +38,7 @@ export async function GET(
           vote_average,
           genres,
           added_at,
+          added_by,
           media_type,
           profiles (
             id,
@@ -93,5 +94,77 @@ export async function GET(
       { error: 'Failed to fetch watchlist' },
       { status: 500 }
     )
+  }
+}
+
+export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+  try {
+    const supabase = await createClient();
+    const { id } = params;
+    const body = await request.json();
+    const { name, description } = body;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    // Check ownership
+    const { data: watchlist, error } = await supabase
+      .from('watchlists')
+      .select('owner_id')
+      .eq('id', id)
+      .single();
+    if (error || !watchlist) {
+      return NextResponse.json({ error: 'Watchlist not found.' }, { status: 404 });
+    }
+    if (watchlist.owner_id !== user.id) {
+      return NextResponse.json({ error: 'Only the owner can edit this watchlist.' }, { status: 403 });
+    }
+    const { error: updateError } = await supabase
+      .from('watchlists')
+      .update({ name, description })
+      .eq('id', id);
+    if (updateError) {
+      return NextResponse.json({ error: 'Failed to update watchlist.' }, { status: 500 });
+    }
+    return NextResponse.json({ message: 'Watchlist updated.' });
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to update watchlist.' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+  try {
+    const supabase = await createClient();
+    const { id } = params;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    // Check ownership
+    const { data: watchlist, error } = await supabase
+      .from('watchlists')
+      .select('owner_id')
+      .eq('id', id)
+      .single();
+    if (error || !watchlist) {
+      return NextResponse.json({ error: 'Watchlist not found.' }, { status: 404 });
+    }
+    if (watchlist.owner_id !== user.id) {
+      return NextResponse.json({ error: 'Only the owner can delete this watchlist.' }, { status: 403 });
+    }
+    // Delete all members and items (cascades if FK is set, otherwise manual)
+    await supabase.from('watchlist_members').delete().eq('watchlist_id', id);
+    await supabase.from('watchlist_items').delete().eq('watchlist_id', id);
+    const { error: deleteError } = await supabase.from('watchlists').delete().eq('id', id);
+    if (deleteError) {
+      return NextResponse.json({ error: 'Failed to delete watchlist.' }, { status: 500 });
+    }
+    return NextResponse.json({ message: 'Watchlist deleted.' });
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to delete watchlist.' }, { status: 500 });
   }
 } 

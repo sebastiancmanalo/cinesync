@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "./ui/label";
@@ -78,16 +79,16 @@ export function InviteUserDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent>
+      <DialogContent className="font-sans">
         <DialogHeader>
-          <DialogTitle>Share Watchlist by Email</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="font-heading">Share Watchlist by Email</DialogTitle>
+          <DialogDescription className="font-sans">
             Enter the email of a registered user to add them to this watchlist.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="email" className="text-right">
+            <Label htmlFor="email" className="text-right font-sans">
               Email
             </Label>
           <Input
@@ -97,30 +98,32 @@ export function InviteUserDialog({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             disabled={loading}
-              className="col-span-3"
+              className="col-span-3 font-sans"
           />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="role" className="text-right">
+            <Label htmlFor="role" className="text-right font-sans">
               Role
             </Label>
-            <select
-              id="role"
+            <Select
               value={role}
-              onChange={e => setRole(e.target.value as 'viewer' | 'editor')}
-              disabled={loading}
-              className="col-span-3 border rounded px-2 py-1"
+              onValueChange={value => setRole(value as 'viewer' | 'editor')}
             >
-              <option value="viewer">Viewer (can only view)</option>
-              <option value="editor">Editor (can add/remove items)</option>
-            </select>
+              <SelectTrigger disabled={loading} className="col-span-3">
+                <SelectValue placeholder="Select role" />
+              </SelectTrigger>
+              <SelectContent className="font-sans">
+                <SelectItem value="viewer" className="font-sans">Viewer (can only view)</SelectItem>
+                <SelectItem value="editor" className="font-sans">Editor (can add/remove items)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           {error && (
-            <p className="col-span-4 text-center text-sm text-red-500">{error}</p>
+            <p className="col-span-4 text-center text-sm text-red-500 font-sans">{error}</p>
           )}
         </div>
         <DialogFooter>
-          <Button onClick={handleInviteUser} disabled={loading} className="w-full">
+          <Button onClick={handleInviteUser} disabled={loading} className="w-full font-sans">
             {loading ? "Adding..." : "Add User"}
           </Button>
         </DialogFooter>

@@ -12,6 +12,7 @@ import { Film, LogOut, Trash2, User, Mail, Camera, ArrowLeft } from "lucide-reac
 import Link from "next/link"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useRouter } from "next/navigation"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface Watchlist {
   id: string;
@@ -123,16 +124,16 @@ export default function SettingsPage() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-16">
           <div className="max-w-2xl mx-auto">
             <Card className="bg-background/50 backdrop-blur-sm border border-border/20 shadow-lg">
-              <CardHeader className="pb-6">
+              <CardHeader className="pb-4">
                 <CardTitle className="text-3xl sm:text-4xl font-heading text-primary">Settings</CardTitle>
                 <CardDescription className="text-lg font-sans text-muted-foreground">
                   Manage your account settings and preferences
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleUpdateProfile} className="space-y-8">
+                <form onSubmit={handleUpdateProfile} className="space-y-5">
                   {/* Profile Section */}
-                  <div className="space-y-6">
+                  <div className="space-y-4">
                     <h3 className="text-2xl font-heading text-primary flex items-center gap-3">
                       <User className="w-6 h-6" />
                       Profile
@@ -189,8 +190,8 @@ export default function SettingsPage() {
                   </div>
 
                   {/* Owned Watchlists Section */}
-                  <div className="mt-12">
-                    <h3 className="text-2xl font-heading text-primary mb-4 flex items-center gap-3">
+                  <div className="mt-8">
+                    <h3 className="text-2xl font-heading text-primary mb-2 flex items-center gap-3">
                       <Film className="w-6 h-6" />
                       Your Watchlists
                     </h3>
@@ -201,23 +202,32 @@ export default function SettingsPage() {
                         <p className="text-sm text-muted-foreground/70 mt-2">Create your first watchlist to get started!</p>
                       </div>
                     ) : (
-                      <ul className="space-y-4">
+                      <ul className="space-y-2">
                         {ownedWatchlists.map((w: Watchlist) => (
                           <li key={w.id} className="flex items-center justify-between bg-background/30 border border-border/20 rounded-lg p-4">
                             <div>
                               <div className="font-heading text-lg text-primary">{w.name}</div>
                               {w.description && <div className="text-sm font-sans text-muted-foreground mt-1">{w.description}</div>}
                             </div>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
                             <Button
-                              variant="destructive"
-                              size="sm"
+                                    variant="ghost"
+                                    size="icon"
                               disabled={deletingId === w.id}
                               onClick={() => handleDeleteWatchlist(w.id)}
-                              className="ml-4 bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30"
+                                    className="rounded-full border border-border/30 hover:bg-red-500/10 hover:text-red-500 transition-colors font-sans"
+                                    aria-label="Delete Watchlist"
                             >
-                              <Trash2 className="w-4 h-4 mr-2" />
+                                    <Trash2 className="w-5 h-5" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="left" className="font-sans">
                               {deletingId === w.id ? "Deleting..." : "Delete"}
-                            </Button>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           </li>
                         ))}
                       </ul>
@@ -236,37 +246,34 @@ export default function SettingsPage() {
                     </div>
                   )}
 
-                  <div className="flex justify-between pt-6">
+                  {/* Unified Action Buttons Row */}
+                  <div className="flex flex-col sm:flex-row gap-2 pt-4 w-full">
                     <Button
                       type="button"
                       variant="ghost"
                       onClick={() => router.push("/dashboard")}
-                      className="hover:bg-primary/20 hover:text-primary"
+                      className="font-sans flex-1 min-w-0 h-12 rounded-xl border border-border/30 hover:bg-primary/10 hover:text-primary transition-colors"
                     >
-                      <ArrowLeft className="w-4 h-4 mr-2" />
-                      Back to Dashboard
+                      <ArrowLeft className="w-5 h-5 mr-2" />
+                      <span>Back to Dashboard</span>
                     </Button>
                     <Button 
                       type="submit" 
                       disabled={loading} 
-                      className="bg-gradient-to-r from-pink-500 to-yellow-400 hover:from-pink-600 hover:to-yellow-500 text-black font-medium"
+                      className="bg-gradient-to-r from-primary to-yellow-400 hover:from-primary/90 hover:to-yellow-500 text-black font-sans font-medium flex-1 min-w-0 h-12 rounded-xl transition-colors border border-yellow-400/40"
                     >
                       {loading ? "Saving..." : "Save Changes"}
                     </Button>
-                  </div>
-                </form>
-
-                {/* Sign Out Button */}
-                <div className="mt-12 flex justify-end">
                   <Button 
                     variant="outline" 
                     onClick={signOut} 
-                    className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/50"
+                      className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/50 font-sans flex-1 min-w-0 h-12 rounded-xl transition-colors"
                   >
-                    <LogOut className="w-4 h-4 mr-2" />
+                      <LogOut className="w-5 h-5 mr-2" />
                     Sign Out
                   </Button>
                 </div>
+                </form>
               </CardContent>
             </Card>
           </div>

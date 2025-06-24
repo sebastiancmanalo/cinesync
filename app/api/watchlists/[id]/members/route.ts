@@ -87,4 +87,25 @@ export async function POST(
     { message: "Member added successfully." },
     { status: 200 }
   );
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  const supabase = await createClient();
+  const { id: watchlistId } = params;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  // Remove self from watchlist_members
+  const { error } = await supabase
+    .from('watchlist_members')
+    .delete()
+    .eq('watchlist_id', watchlistId)
+    .eq('user_id', user.id);
+  if (error) {
+    return NextResponse.json({ error: 'Failed to leave watchlist.' }, { status: 500 });
+  }
+  return NextResponse.json({ message: 'Left watchlist.' });
 } 
