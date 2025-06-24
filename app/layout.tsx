@@ -24,6 +24,11 @@ export const metadata: Metadata = {
   title: "CineSync - Your Social Watchlist",
   description: "Create, share, and sync watchlists with friends.",
   generator: "v0.dev",
+  icons: {
+    icon: "/CineSync Favicon.svg",
+    shortcut: "/CineSync Favicon.svg",
+    apple: "/CineSync Favicon.svg",
+  },
 }
 
 export default function RootLayout({
