@@ -51,12 +51,20 @@ A modern, collaborative movie and TV show watchlist sharing application built wi
    ```bash
    # Supabase Configuration
    NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url_here
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
-   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
+   
+   # Use NEW API Keys (Recommended - Supabase 2024+)
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_publishable_key_here
+   SUPABASE_SERVICE_ROLE_KEY=your_secret_key_here
+   
+   # OR use Legacy API Keys (still supported)
+   # NEXT_PUBLIC_SUPABASE_ANON_KEY=your_legacy_anon_key_here
+   # SUPABASE_SERVICE_ROLE_KEY=your_legacy_service_role_key_here
 
    # TMDB API (for movie data)
    NEXT_PUBLIC_TMDB_API_KEY=your_tmdb_api_key_here
    ```
+   
+   **Note:** The new Supabase API keys (publishable/secret) work the same way as the legacy keys. You can use either format - both are supported by the Supabase SDK.
 
 4. **Set up Supabase Database**
    - Create a new Supabase project at [supabase.com](https://supabase.com)
@@ -153,10 +161,10 @@ supabase db push
 
 1. Connect your GitHub repository to Vercel
 2. Add environment variables in Vercel dashboard:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY`
-   - `NEXT_PUBLIC_TMDB_API_KEY`
+   - `NEXT_PUBLIC_SUPABASE_URL` - Your Supabase project URL
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Your publishable key (or legacy anon key)
+   - `SUPABASE_SERVICE_ROLE_KEY` - Your secret key (or legacy service_role key)
+   - `NEXT_PUBLIC_TMDB_API_KEY` - Your TMDB API key
 3. Deploy automatically on push to main branch
 
 ### Manual Deployment

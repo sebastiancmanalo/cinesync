@@ -36,7 +36,10 @@ I've created a **clean, comprehensive database schema** for your CineSync app wi
 1. In your Supabase dashboard, go to **Settings** → **API**
 2. Copy these values:
    - **Project URL** (starts with `https://`)
-   - **Anon public key** (starts with `eyJ`)
+   - **Publishable key** (new format: starts with `sb_publishable_`) OR **Anon public key** (legacy: starts with `eyJ`)
+   - **Secret key** (new format: starts with `sb_secret_`) OR **Service role key** (legacy: starts with `eyJ`)
+   
+   **Note:** You can use either the new API keys (recommended) or legacy keys - both work with the codebase.
 
 ### **Step 3: Set Up Environment Variables**
 Create a `.env.local` file in your project root:
@@ -44,7 +47,8 @@ Create a `.env.local` file in your project root:
 ```bash
 # Supabase Configuration
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url_here
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_publishable_key_or_anon_key_here
+SUPABASE_SERVICE_ROLE_KEY=your_secret_key_or_service_role_key_here
 
 # TMDB API (for movie data)
 NEXT_PUBLIC_TMDB_API_KEY=your_tmdb_api_key_here
