@@ -1,17 +1,26 @@
 # 🎬 CineSync
 
-A modern, cinematic movie watchlist sharing app built with Next.js, Supabase, and TypeScript.
+A modern, collaborative movie and TV show watchlist sharing application built with Next.js, Supabase, and TypeScript. Create shared watchlists with friends, family, or roommates, and never lose track of what you want to watch together.
 
 ## ✨ Features
 
-- **🎭 Cinematic Design** - Beautiful dark theme with warm accents inspired by classic cinema
-- **📱 Responsive** - Works perfectly on desktop, tablet, and mobile
-- **👥 Social Sharing** - Share watchlists with friends and family
-- **🎬 Movie Management** - Add, remove, and mark movies as watched
-- **💬 Reviews & Ratings** - Rate and review movies with star ratings
-- **🔍 Smart Recommendations** - Get personalized movie suggestions
-- **⚡ Real-time Updates** - Live updates when data changes
-- **🔐 Secure Authentication** - Built-in user authentication with Supabase
+### ✅ Implemented Features
+
+- **👥 Shared Watchlists** - Create and manage watchlists with multiple members
+- **🔐 User Authentication** - Secure OAuth authentication via Supabase
+- **🎬 Movie & TV Search** - Search and add movies/TV shows using TMDB API
+- **📝 Reviews & Ratings** - Rate and review movies with star ratings and comments
+- **👤 Member Management** - Add users to watchlists by email with role-based permissions (owner, editor, viewer)
+- **📊 Dashboard** - Overview of all your watchlists with statistics
+- **🎨 Modern UI** - Beautiful dark theme with responsive design
+- **🔒 Row Level Security** - Secure data access with PostgreSQL RLS policies
+
+### 🚧 Planned Features
+
+- Smart recommendations based on watch history
+- Real-time updates via Supabase subscriptions
+- Time estimation and scheduling
+- Platform availability integration
 
 ## 🚀 Quick Start
 
@@ -20,7 +29,7 @@ A modern, cinematic movie watchlist sharing app built with Next.js, Supabase, an
 - Node.js 18+ 
 - pnpm (recommended) or npm
 - Supabase account
-- TMDB API key (optional, for movie data)
+- TMDB API key (for movie data)
 
 ### Installation
 
@@ -43,18 +52,16 @@ A modern, cinematic movie watchlist sharing app built with Next.js, Supabase, an
    # Supabase Configuration
    NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url_here
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
 
    # TMDB API (for movie data)
    NEXT_PUBLIC_TMDB_API_KEY=your_tmdb_api_key_here
-
-   # OpenRouter API (for AI recommendations - optional)
-   OPENROUTER_API_KEY=your_openrouter_api_key_here
    ```
 
-4. **Set up Supabase**
+4. **Set up Supabase Database**
    - Create a new Supabase project at [supabase.com](https://supabase.com)
    - Get your project URL and anon key from Settings → API
-   - Run database migrations:
+   - Run database migrations from the `supabase/migrations` directory:
      ```bash
      supabase link --project-ref your_project_ref
      supabase db push
@@ -72,11 +79,11 @@ A modern, cinematic movie watchlist sharing app built with Next.js, Supabase, an
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: Next.js 15, React 19, TypeScript
-- **Styling**: Tailwind CSS, shadcn/ui components
-- **Backend**: Supabase (PostgreSQL, Auth, Real-time)
-- **Database**: PostgreSQL with Row Level Security
-- **Deployment**: Vercel (recommended)
+- **Frontend**: Next.js 15 (App Router), React 19, TypeScript
+- **Styling**: Tailwind CSS, shadcn/ui component library
+- **Backend**: Supabase (PostgreSQL, Authentication, Row Level Security)
+- **Database**: PostgreSQL with comprehensive RLS policies
+- **APIs**: TMDB API for movie/TV metadata
 - **Package Manager**: pnpm
 
 ## 📁 Project Structure
@@ -84,27 +91,38 @@ A modern, cinematic movie watchlist sharing app built with Next.js, Supabase, an
 ```
 cinesync/
 ├── app/                    # Next.js app directory
-│   ├── api/               # API routes
-│   ├── dashboard/         # Dashboard pages
-│   ├── watchlist/         # Watchlist pages
-│   └── settings/          # Settings pages
+│   ├── api/               # API routes (REST endpoints)
+│   │   ├── dashboard/    # Dashboard data endpoint
+│   │   ├── watchlists/   # Watchlist CRUD operations
+│   │   ├── users/        # User search endpoints
+│   │   └── search/       # Movie search endpoint
+│   ├── dashboard/         # Dashboard page
+│   ├── watchlist/        # Individual watchlist pages
+│   ├── settings/         # User settings page
+│   └── auth/             # Authentication pages
 ├── components/            # Reusable UI components
-├── contexts/              # React contexts
+│   ├── ui/               # shadcn/ui components
+│   ├── movie-search.tsx  # Movie search component
+│   └── invite-user-dialog.tsx # User invitation component
+├── contexts/              # React contexts (auth)
 ├── hooks/                 # Custom React hooks
 ├── lib/                   # Utility libraries
-├── supabase/              # Database migrations
+│   ├── supabase/         # Supabase client setup
+│   └── tmdb.ts           # TMDB API integration
+├── supabase/
+│   └── migrations/       # Database migration files
 ├── types/                 # TypeScript type definitions
-└── styles/                # Global styles
+└── styles/               # Global styles
 ```
 
 ## 🎨 Design System
 
 CineSync uses a cinematic design system with:
 
-- **Colors**: Dark theme with warm amber/pink accents
+- **Colors**: Dark theme with warm amber/pink gradient accents
 - **Typography**: Lora (body), Playfair Display (headings), Bebas Neue (logo)
 - **Components**: shadcn/ui with custom styling
-- **Animations**: Smooth transitions and hover effects
+- **Responsive**: Mobile-first design that works on all devices
 
 ## 🔧 Development
 
@@ -114,19 +132,19 @@ CineSync uses a cinematic design system with:
 - `pnpm build` - Build for production
 - `pnpm start` - Start production server
 - `pnpm lint` - Run ESLint
-- `pnpm type-check` - Run TypeScript type checking
 
 ### Database Migrations
 
+The project includes migration files in `supabase/migrations/` that set up:
+- User profiles and authentication
+- Watchlists and member management
+- Watchlist items with movie/TV metadata
+- Reviews and ratings system
+- Row Level Security policies
+
+To apply migrations:
 ```bash
-# Create a new migration
-supabase migration new migration_name
-
-# Apply migrations
 supabase db push
-
-# Reset database
-supabase db reset
 ```
 
 ## 🚀 Deployment
@@ -134,7 +152,11 @@ supabase db reset
 ### Vercel (Recommended)
 
 1. Connect your GitHub repository to Vercel
-2. Add environment variables in Vercel dashboard
+2. Add environment variables in Vercel dashboard:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `NEXT_PUBLIC_TMDB_API_KEY`
 3. Deploy automatically on push to main branch
 
 ### Manual Deployment
@@ -144,23 +166,22 @@ pnpm build
 pnpm start
 ```
 
-## 🤝 Contributing
+## 🔒 Security
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+- All API keys and secrets are stored in environment variables
+- Row Level Security (RLS) policies enforce data access at the database level
+- User authentication handled securely via Supabase Auth
+- No hardcoded credentials in the codebase
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License.
 
 ## 🙏 Acknowledgments
 
 - [Supabase](https://supabase.com) for the amazing backend platform
 - [shadcn/ui](https://ui.shadcn.com) for the beautiful component library
-- [TMDB](https://www.themoviedb.org) for movie data
+- [TMDB](https://www.themoviedb.org) for movie and TV show data
 - [Next.js](https://nextjs.org) for the incredible React framework
 
 ---

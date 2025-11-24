@@ -19,11 +19,12 @@ In an age of fragmented streaming services and overwhelming content choices, peo
 ---
 
 ## Key Features  
-*Note: None of the following features have been implemented yet. All are in the planning or pre-development stage.*
+*Note: Some features are implemented, while others are in the planning or pre-development stage.*
 
-1. **Shared Lists**  
+1. **Shared Lists** ✅ *Implemented*  
    - Create and manage watchlists with one or more people  
    - Permissions: owner, editor, viewer  
+   - Members can leave watchlists at any time (self-removal)  
 
 2. **Auto Metadata Fetching**  
    - Automatically pull data (title, year, poster, runtime, description, streaming availability) from APIs like TMDb or JustWatch  
@@ -51,11 +52,12 @@ In an age of fragmented streaming services and overwhelming content choices, peo
 ---
 
 ## User Flow  
-*All user flows are proposed and not yet implemented.*
+*Some user flows are implemented, while others are proposed and pending implementation.*
 
-1. **Onboarding**  
+1. **Onboarding** ✅ *Implemented*  
    - Sign up/log in  
    - Create or join a shared list (via invite link or username)  
+   - Leave a watchlist (members can remove themselves at any time)  
 
 2. **Adding Titles**  
    - Search for a title via TMDb API  
@@ -123,13 +125,14 @@ In an age of fragmented streaming services and overwhelming content choices, peo
 ---
 
 ## Timeline and Milestones  
-*No features have been implemented yet. All phases are pending development.*
+*Some features have been implemented. Development is ongoing.*
 
-**Phase 1: MVP (Pending)**  
-- Core functionality: shared lists, search & add titles, metadata fetching, watch time calculation  
-- Mark as watched/in progress  
-- Basic frontend UI  
-- User authentication  
+**Phase 1: MVP (In Progress)**  
+- ✅ Core functionality: shared lists, member management (add/remove members, leave watchlists)  
+- ✅ Basic frontend UI  
+- ✅ User authentication  
+- ⏳ Search & add titles, metadata fetching, watch time calculation  
+- ⏳ Mark as watched/in progress  
 
 **Phase 2: V1 Launch (Pending)**  
 - Platform availability info  
